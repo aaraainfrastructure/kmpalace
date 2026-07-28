@@ -392,34 +392,47 @@ async function sendBookingNotificationEmail(booking: Booking) {
   if (resendKey) {
     try {
       const resend = new Resend(resendKey);
-      const fromAddress = process.env.RESEND_FROM_EMAIL || 'KM PALACE <onboarding@resend.dev>';
+      const primaryFrom = process.env.RESEND_FROM_EMAIL || 'KM PALACE <booking@kmpalace.com>';
+      const fallbackFrom = 'KM PALACE <onboarding@resend.dev>';
+
+      const sendResendEmail = async (to: string, subject: string, html: string) => {
+        try {
+          const res = await resend.emails.send({ from: primaryFrom, to: [to], subject, html });
+          if (res.error) throw new Error(res.error.message);
+          return true;
+        } catch (err: any) {
+          console.warn(`[RESEND PRIMARY NOTE for ${to}]: ${err?.message || err}. Retrying via onboarding address...`);
+          try {
+            const fbRes = await resend.emails.send({ from: fallbackFrom, to: [to], subject, html });
+            if (fbRes.error) throw new Error(fbRes.error.message);
+            return true;
+          } catch (fbErr: any) {
+            console.warn(`[RESEND FALLBACK NOTE for ${to}]: ${fbErr?.message || fbErr}`);
+            return false;
+          }
+        }
+      };
 
       for (const recipient of adminRecipients) {
-        try {
-          await resend.emails.send({
-            from: fromAddress,
-            to: [recipient],
-            subject: `[NEW BOOKING] Notification: ${booking.booking_id} (${booking.customer_name})`,
-            html: managerHtml,
-          });
+        const sent = await sendResendEmail(
+          recipient,
+          `[NEW BOOKING] Notification: ${booking.booking_id} (${booking.customer_name})`,
+          managerHtml
+        );
+        if (sent) {
           console.log(`[RESEND SUCCESS] Sent booking notification to ${recipient}`);
           isDelivered = true;
-        } catch (resendRecipErr: any) {
-          console.warn(`[RESEND NOTE] Could not send to ${recipient}:`, resendRecipErr?.message || resendRecipErr);
         }
       }
 
       if (customerEmail && customerEmail !== primaryEmail && !adminRecipients.includes(customerEmail)) {
-        try {
-          await resend.emails.send({
-            from: fromAddress,
-            to: [customerEmail],
-            subject: `KM PALACE Booking Confirmation [${booking.booking_id}]`,
-            html: customerHtml,
-          });
+        const sentCust = await sendResendEmail(
+          customerEmail,
+          `KM PALACE Booking Confirmation [${booking.booking_id}]`,
+          customerHtml
+        );
+        if (sentCust) {
           console.log(`[RESEND SUCCESS] Sent customer confirmation to ${customerEmail}`);
-        } catch (resendCustErr: any) {
-          console.warn(`[RESEND NOTE] Could not send customer confirmation to ${customerEmail}:`, resendCustErr?.message || resendCustErr);
         }
       }
     } catch (resendErr: any) {
@@ -1015,20 +1028,34 @@ app.post('/api/leads', async (req: Request, res: Response) => {
     if (resendKey) {
       try {
         const resend = new Resend(resendKey);
-        const fromAddress = process.env.RESEND_FROM_EMAIL || 'KM PALACE Leads <onboarding@resend.dev>';
+        const primaryFrom = process.env.RESEND_FROM_EMAIL || 'KM PALACE Leads <leads@kmpalace.com>';
+        const fallbackFrom = 'KM PALACE Leads <onboarding@resend.dev>';
         const leadRecipients = Array.from(new Set([primaryEmail, 'gowri7282@gmail.com']));
 
         for (const recipient of leadRecipients) {
           try {
-            await resend.emails.send({
-              from: fromAddress,
+            const res = await resend.emails.send({
+              from: primaryFrom,
               to: [recipient],
               subject: `[BLOG LEAD] ${name} (${phone}) - ${blogTitle || 'Marriage Halls in Chennai'}`,
               html: leadHtml,
             });
+            if (res.error) throw new Error(res.error.message);
             console.log(`[RESEND SUCCESS] Sent blog lead to ${recipient}`);
           } catch (rErr: any) {
-            console.warn(`[RESEND LEAD NOTE] Could not send lead to ${recipient}:`, rErr?.message || rErr);
+            console.warn(`[RESEND LEAD PRIMARY NOTE for ${recipient}]: ${rErr?.message || rErr}. Retrying via onboarding address...`);
+            try {
+              const fbRes = await resend.emails.send({
+                from: fallbackFrom,
+                to: [recipient],
+                subject: `[BLOG LEAD] ${name} (${phone}) - ${blogTitle || 'Marriage Halls in Chennai'}`,
+                html: leadHtml,
+              });
+              if (fbRes.error) throw new Error(fbRes.error.message);
+              console.log(`[RESEND SUCCESS] Sent blog lead via fallback to ${recipient}`);
+            } catch (fbErr: any) {
+              console.warn(`[RESEND LEAD FALLBACK NOTE for ${recipient}]: ${fbErr?.message || fbErr}`);
+            }
           }
         }
       } catch (err: any) {
