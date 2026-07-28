@@ -12,16 +12,9 @@ const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL |
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0bGdmcGZtanVuZXN3bXFweGZ3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDc5OTA0MSwiZXhwIjoyMTAwMzc1MDQxfQ.J-KTnHZbClHeBBtrp4PMQmXZG0h7wbG7PVZ-QmITyB0';
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-// Nodemailer Transporter & Brevo API helper
+// Nodemailer Transporter & Resend API helper
 const getSmtpUser = () => (process.env.SMTP_USER || process.env.GMAIL_USER || 'gowri7282@gmail.com').trim();
 const getSmtpPass = () => (process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || 'vgqk cykd debx nmgd').replace(/\s+/g, '');
-const getBrevoApiKey = () => {
-  if (process.env.BREVO_API_KEY) return process.env.BREVO_API_KEY.trim();
-  if (process.env.SENDINBLUE_API_KEY) return process.env.SENDINBLUE_API_KEY.trim();
-  const k1 = 'xkeysib-3bc86158378fa30831d575fe71851c450e01b2da0e82c6449eeef6d56155dfec';
-  const k2 = 'xqh3uZxubtWfc3FU';
-  return `${k1}-${k2}`;
-};
 
 const getResendApiKey = () => {
   if (process.env.RESEND_API_KEY) return process.env.RESEND_API_KEY.trim();
@@ -394,56 +387,7 @@ async function sendBookingNotificationEmail(booking: Booking) {
   const adminRecipients = ['Kannan.d26@gmail.com', 'gowri7282@gmail.com'];
   let isDelivered = false;
 
-  // Dispatch Strategy 1: Brevo HTTP API (Highest reliability on Vercel over Port 443)
-  const brevoApiKey = getBrevoApiKey();
-
-  if (brevoApiKey) {
-    try {
-      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: {
-          'accept': 'application/json',
-          'api-key': brevoApiKey,
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          sender: { name: 'KM PALACE', email: 'gowri7282@gmail.com' },
-          to: adminRecipients.map((e) => ({ email: e })),
-          subject: `[KM PALACE BOOKING] ${booking.booking_id} - ${booking.customer_name}`,
-          htmlContent: managerHtml,
-        }),
-      });
-      if (response.ok) {
-        console.log('[BREVO SUCCESS] Booking notification dispatched to both Kannan.d26@gmail.com & gowri7282@gmail.com');
-        isDelivered = true;
-
-        if (customerEmail && !adminRecipients.includes(customerEmail)) {
-          fetch('https://api.brevo.com/v3/smtp/email', {
-            method: 'POST',
-            headers: {
-              'accept': 'application/json',
-              'api-key': brevoApiKey,
-              'content-type': 'application/json',
-            },
-            body: JSON.stringify({
-              sender: { name: 'KM PALACE', email: 'gowri7282@gmail.com' },
-              to: [{ email: customerEmail }],
-              cc: [{ email: 'gowri7282@gmail.com' }],
-              subject: `KM PALACE Booking Confirmation [${booking.booking_id}]`,
-              htmlContent: customerHtml,
-            }),
-          }).catch(err => console.warn('[BREVO CUSTOMER ERR]', err));
-        }
-      } else {
-        const errText = await response.text();
-        console.warn('[BREVO NOTE]', errText);
-      }
-    } catch (brevoErr: any) {
-      console.warn('[BREVO EXCEPTION]', brevoErr?.message || brevoErr);
-    }
-  }
-
-  // Dispatch Strategy 2: Resend HTTP API (Over Port 443)
+  // Dispatch Strategy 1: Resend HTTP API (Primary over Port 443)
   const resendKey = getResendApiKey();
   if (resendKey) {
     try {
@@ -479,7 +423,7 @@ async function sendBookingNotificationEmail(booking: Booking) {
         }
       }
     } catch (resendErr: any) {
-      console.warn('[RESEND BACKUP NOTICE]', resendErr?.message || resendErr);
+      console.warn('[RESEND PRIMARY NOTICE]', resendErr?.message || resendErr);
     }
   }
 
@@ -1066,51 +1010,7 @@ app.post('/api/leads', async (req: Request, res: Response) => {
       </div>
     `;
 
-    // Try Brevo HTTP API first for blog leads
-    const brevoKey = getBrevoApiKey();
-    if (brevoKey) {
-      try {
-        const brevoRes = await fetch('https://api.brevo.com/v3/smtp/email', {
-          method: 'POST',
-          headers: {
-            'accept': 'application/json',
-            'api-key': brevoKey,
-            'content-type': 'application/json',
-          },
-          body: JSON.stringify({
-            sender: { name: 'KM PALACE Leads', email: 'gowri7282@gmail.com' },
-            to: [{ email: primaryEmail }, { email: 'gowri7282@gmail.com' }],
-            subject: `[BLOG LEAD] ${name} (${phone}) - ${blogTitle || 'Marriage Halls in Chennai'}`,
-            htmlContent: leadHtml,
-          }),
-        });
-        if (brevoRes.ok) {
-          console.log(`[BREVO LEAD SUCCESS] Sent blog lead to ${primaryEmail} & gowri7282@gmail.com`);
-        } else {
-          const errText = await brevoRes.text();
-          console.warn('[BREVO LEAD NOTE]', errText);
-        }
-      } catch (bErr: any) {
-        console.warn('[BREVO LEAD EXCEPTION]', bErr?.message || bErr);
-      }
-    }
-
-    // Nodemailer SMTP fallback for blog leads
-    try {
-      const activeTransporter = createTransporter();
-      const senderEmail = getSmtpUser();
-      await activeTransporter.sendMail({
-        from: `"KM PALACE Leads" <${senderEmail}>`,
-        to: primaryEmail,
-        cc: 'gowri7282@gmail.com',
-        subject: `[BLOG LEAD] ${name} (${phone}) - ${blogTitle || 'Marriage Halls in Chennai'}`,
-        html: leadHtml,
-      });
-      console.log(`[NODEMAILER SUCCESS] Sent blog lead to ${primaryEmail} & gowri7282@gmail.com`);
-    } catch (smtpErr: any) {
-      console.warn('[NODEMAILER BLOG LEAD SMTP NOTICE]', smtpErr?.message || smtpErr);
-    }
-
+    // Resend HTTP API for blog leads
     const resendKey = getResendApiKey();
     if (resendKey) {
       try {
@@ -1134,6 +1034,22 @@ app.post('/api/leads', async (req: Request, res: Response) => {
       } catch (err: any) {
         console.warn('[RESEND LEAD ERROR]', err?.message || err);
       }
+    }
+
+    // Nodemailer SMTP fallback for blog leads
+    try {
+      const activeTransporter = createTransporter();
+      const senderEmail = getSmtpUser();
+      await activeTransporter.sendMail({
+        from: `"KM PALACE Leads" <${senderEmail}>`,
+        to: primaryEmail,
+        cc: 'gowri7282@gmail.com',
+        subject: `[BLOG LEAD] ${name} (${phone}) - ${blogTitle || 'Marriage Halls in Chennai'}`,
+        html: leadHtml,
+      });
+      console.log(`[NODEMAILER SUCCESS] Sent blog lead to ${primaryEmail} & gowri7282@gmail.com`);
+    } catch (smtpErr: any) {
+      console.warn('[NODEMAILER BLOG LEAD SMTP NOTICE]', smtpErr?.message || smtpErr);
     }
 
     res.json({
