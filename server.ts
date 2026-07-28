@@ -3,7 +3,6 @@ import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
-import { createServer as createViteServer } from 'vite';
 import { createClient } from '@supabase/supabase-js';
 import { Booking, AdminManualBlock } from './src/types';
 import { calculateBlockedDates, checkBookingConflict, generateBookingId, formatDisplayDate } from './src/lib/bookingLogic';
@@ -44,6 +43,17 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json());
+
+// Enable CORS for all origins (including www.kmpalace.com and AI Studio)
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 // File-backed JSON storage for server persistence
 const DATA_FILE = process.env.VERCEL
@@ -93,8 +103,36 @@ async function loadDataWithSupabase(): Promise<ServerData> {
   const localData = loadServerData();
   try {
     const { data: dbBookings, error: bErr } = await supabase.from('bookings').select('*').order('created_at', { ascending: false });
-    if (!bErr && Array.isArray(dbBookings)) {
-      localData.bookings = dbBookings as Booking[];
+    if (!bErr && Array.isArray(dbBookings) && dbBookings.length > 0) {
+      localData.bookings = dbBookings.map((b: any) => ({
+        id: b.id || 'bk_' + Date.now(),
+        booking_id: b.booking_id || 'KM-2026-001',
+        customer_name: b.customer_name || b.name || 'Valued Guest',
+        phone: b.phone || '',
+        email: b.email || '',
+        bride_name: b.bride_name || '',
+        groom_name: b.groom_name || '',
+        marriage_date: b.marriage_date || b.booking_date || new Date().toISOString().split('T')[0],
+        muhurtham_time: b.muhurtham_time || '06:00 AM',
+        from_time: b.from_time || b.muhurtham_time || '06:00 AM',
+        end_time: b.end_time || '10:00 PM',
+        function_type: b.function_type || 'Wedding',
+        guest_count: b.guest_count || 500,
+        requirements: Array.isArray(b.requirements) ? b.requirements : [],
+        blocked_previous_day: b.blocked_previous_day ?? false,
+        blocked_dates: Array.isArray(b.blocked_dates) ? b.blocked_dates : [b.marriage_date || b.booking_date],
+        booking_status: b.booking_status || 'Confirmed',
+        created_at: b.created_at || new Date().toISOString(),
+        notes: b.notes || '',
+        estimated_amount: b.estimated_amount || b.total_amount || 364500,
+        payment_method: b.payment_method || 'UPI',
+        payment_gateway: b.payment_gateway || 'Manual',
+        currency: b.currency || 'INR',
+        customer_region: b.customer_region || 'India',
+        payment_status: b.payment_status || 'Pending',
+        advance_paid_amount: b.advance_paid_amount || 0,
+        pg_rooms_selected: b.pg_rooms_selected || undefined,
+      }));
     }
     const { data: dbBlocks, error: blErr } = await supabase.from('admin_blocks').select('*');
     if (!blErr && Array.isArray(dbBlocks)) {
@@ -1015,8 +1053,9 @@ async function startServer() {
     return;
   }
 
-  // Vite middleware setup
+  // Vite middleware setup for local development
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
