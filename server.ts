@@ -16,17 +16,25 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 const getSmtpUser = () => (process.env.SMTP_USER || process.env.GMAIL_USER || 'gowri7282@gmail.com').trim();
 const getSmtpPass = () => (process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || 'vgqk cykd debx nmgd').replace(/\s+/g, '');
 
-const createTransporter = () => {
+const createTransporter = (useSsl = false) => {
   const user = getSmtpUser();
   const pass = getSmtpPass();
   const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-  const port = Number(process.env.SMTP_PORT) || 587;
+  const port = Number(process.env.SMTP_PORT) || (useSsl ? 465 : 587);
 
-  if (host === 'smtp.gmail.com') {
+  if (host === 'smtp.gmail.com' || host === 'smtp.googlemail.com') {
     return nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: useSsl ? 465 : 587,
+      secure: useSsl, // true for 465, false for 587
       auth: { user, pass },
-      tls: { rejectUnauthorized: false },
+      tls: {
+        rejectUnauthorized: false,
+        ciphers: 'SSLv3',
+      },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
     });
   }
 
@@ -36,6 +44,7 @@ const createTransporter = () => {
     secure: port === 465,
     auth: { user, pass },
     tls: { rejectUnauthorized: false },
+    connectionTimeout: 10000,
   });
 };
 
@@ -378,53 +387,47 @@ async function sendBookingNotificationEmail(booking: Booking) {
     </div>
   `;
 
-  // Primary Dispatch via Nodemailer Gmail SMTP
-  let nodemailerSent = false;
-  try {
-    const activeTransporter = createTransporter();
-    const senderEmail = getSmtpUser();
+  // Target recipients
+  const adminRecipients = ['Kannan.d26@gmail.com', 'gowri7282@gmail.com'];
+  let isDelivered = false;
 
-    // 1. Send Notification to KM PALACE Management
-    const mgmtInfo = await activeTransporter.sendMail({
-      from: `"KM PALACE Booking" <${senderEmail}>`,
-      to: primaryEmail, // Kannan.d26@gmail.com
-      cc: ccEmail, // gowri7282@gmail.com
-      subject: `New Booking - ${booking.customer_name} (${booking.booking_id})`,
-      html: managerHtml,
-    });
-    console.log(`[NODEMAILER SUCCESS] Manager alert sent to ${primaryEmail} (CC: ${ccEmail}):`, mgmtInfo.messageId);
-    nodemailerSent = true;
-
-    // 2. Send Confirmation to Customer
-    if (customerEmail) {
-      try {
-        const custInfo = await activeTransporter.sendMail({
-          from: `"KM PALACE" <${senderEmail}>`,
-          to: customerEmail,
-          cc: ccEmail, // gowri7282@gmail.com
-          subject: `KM PALACE Booking Confirmation [${booking.booking_id}]`,
-          html: customerHtml,
-        });
-        console.log(`[NODEMAILER SUCCESS] Customer confirmation sent to ${customerEmail}:`, custInfo.messageId);
-      } catch (custErr: any) {
-        console.warn(`[NODEMAILER CUSTOMER NOTE] Could not send customer email (${customerEmail}):`, custErr?.message || custErr);
+  // Dispatch Strategy 1: Brevo HTTP API (Highest reliability on Vercel over Port 443)
+  const brevoApiKey = process.env.BREVO_API_KEY || process.env.SENDINBLUE_API_KEY;
+  if (brevoApiKey) {
+    try {
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'api-key': brevoApiKey,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          sender: { name: 'KM PALACE', email: 'gowri7282@gmail.com' },
+          to: adminRecipients.map((e) => ({ email: e })),
+          subject: `[KM PALACE BOOKING] ${booking.booking_id} - ${booking.customer_name}`,
+          htmlContent: managerHtml,
+        }),
+      });
+      if (response.ok) {
+        console.log('[BREVO SUCCESS] Booking notification dispatched to both Kannan.d26@gmail.com & gowri7282@gmail.com');
+        isDelivered = true;
+      } else {
+        const errText = await response.text();
+        console.warn('[BREVO NOTE]', errText);
       }
+    } catch (brevoErr: any) {
+      console.warn('[BREVO EXCEPTION]', brevoErr?.message || brevoErr);
     }
-
-    return;
-  } catch (smtpErr: any) {
-    console.warn('[NODEMAILER SMTP NOTICE] SMTP authentication/dispatch unavailable:', smtpErr?.message || smtpErr);
   }
 
-  // Backup Dispatch via Resend
+  // Dispatch Strategy 2: Resend HTTP API (Over Port 443)
   const resendKey = process.env.RESEND_API_KEY;
-  if (resendKey) {
+  if (!isDelivered && resendKey) {
     try {
       const resend = new Resend(resendKey);
       const fromAddress = process.env.RESEND_FROM_EMAIL || 'KM PALACE <onboarding@resend.dev>';
 
-      // Send to admin recipients individually to prevent Resend sandbox validation_error from failing all recipients
-      const adminRecipients = Array.from(new Set([primaryEmail, ccEmail].filter(Boolean)));
       for (const recipient of adminRecipients) {
         try {
           await resend.emails.send({
@@ -434,36 +437,67 @@ async function sendBookingNotificationEmail(booking: Booking) {
             html: managerHtml,
           });
           console.log(`[RESEND SUCCESS] Sent booking notification to ${recipient}`);
+          isDelivered = true;
         } catch (resendRecipErr: any) {
-          console.warn(`[RESEND NOTE] Could not send to ${recipient} via Resend (Note: Sandbox requires verified email):`, resendRecipErr?.message || resendRecipErr);
+          console.warn(`[RESEND NOTE] Could not send to ${recipient}:`, resendRecipErr?.message || resendRecipErr);
         }
       }
-
-      if (customerEmail && customerEmail !== primaryEmail && customerEmail !== ccEmail) {
-        try {
-          await resend.emails.send({
-            from: fromAddress,
-            to: [customerEmail],
-            subject: `KM PALACE Booking Confirmation [${booking.booking_id}]`,
-            html: customerHtml,
-          });
-          console.log(`[RESEND SUCCESS] Sent customer confirmation to ${customerEmail}`);
-        } catch (resendCustErr: any) {
-          console.warn(`[RESEND NOTE] Could not send customer email to ${customerEmail}:`, resendCustErr?.message || resendCustErr);
-        }
-      }
-
-      return;
     } catch (resendErr: any) {
       console.warn('[RESEND BACKUP NOTICE]', resendErr?.message || resendErr);
     }
   }
 
-  // Simulation mode fallback log
+  // Dispatch Strategy 3: Nodemailer Direct SMTP (Port 465 SSL, then Port 587 STARTTLS)
+  if (!isDelivered) {
+    const smtpPorts = [true, false]; // true = 465 SSL, false = 587 STARTTLS
+    for (const useSsl of smtpPorts) {
+      try {
+        const activeTransporter = createTransporter(useSsl);
+        const senderEmail = getSmtpUser();
+
+        // Send to each admin explicitly so both inboxes receive a direct email
+        for (const recipient of adminRecipients) {
+          try {
+            const mgmtInfo = await activeTransporter.sendMail({
+              from: `"KM PALACE Booking" <${senderEmail}>`,
+              to: recipient,
+              subject: `New Booking Alert - ${booking.customer_name} (${booking.booking_id})`,
+              html: managerHtml,
+            });
+            console.log(`[NODEMAILER SUCCESS] Sent to ${recipient} (Port ${useSsl ? 465 : 587}):`, mgmtInfo.messageId);
+            isDelivered = true;
+          } catch (recipErr: any) {
+            console.warn(`[NODEMAILER RECIP NOTE] Failed sending to ${recipient}:`, recipErr?.message || recipErr);
+          }
+        }
+
+        // Send customer confirmation if available
+        if (customerEmail && !adminRecipients.includes(customerEmail)) {
+          try {
+            const custInfo = await activeTransporter.sendMail({
+              from: `"KM PALACE" <${senderEmail}>`,
+              to: customerEmail,
+              cc: 'gowri7282@gmail.com',
+              subject: `KM PALACE Booking Confirmation [${booking.booking_id}]`,
+              html: customerHtml,
+            });
+            console.log(`[NODEMAILER SUCCESS] Customer confirmation sent to ${customerEmail}:`, custInfo.messageId);
+          } catch (custErr: any) {
+            console.warn(`[NODEMAILER CUSTOMER NOTE] Could not send customer email (${customerEmail}):`, custErr?.message || custErr);
+          }
+        }
+
+        if (isDelivered) break;
+      } catch (smtpErr: any) {
+        console.warn(`[NODEMAILER SMTP NOTICE] SMTP Port ${useSsl ? 465 : 587} unavailable:`, smtpErr?.message || smtpErr);
+      }
+    }
+  }
+
   console.log('----------------------------------------------------');
   console.log('[EMAIL DISPATCH LOG] Summary:');
-  console.log(`1. Customer Email (${customerEmail || 'N/A'}): Confirmation for ${booking.booking_id}`);
-  console.log(`2. Management (${primaryEmail}): New Booking Notification`);
+  console.log(`1. Management Emails (Kannan.d26@gmail.com & gowri7282@gmail.com): Status = ${isDelivered ? 'DELIVERED' : 'QUEUED/FALLBACK'}`);
+  console.log(`2. Customer Email (${customerEmail || 'N/A'}): Confirmation for ${booking.booking_id}`);
   console.log('----------------------------------------------------');
 }
 

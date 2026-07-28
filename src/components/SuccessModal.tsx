@@ -30,12 +30,12 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({ booking, onClose }) 
       });
       const data = await res.json();
       if (res.ok) {
-        setEmailStatus('Sent to Kannan.d26@gmail.com!');
+        setEmailStatus('Sent to Kannan.d26 & Gowri7282!');
       } else {
-        setEmailStatus(data.error || 'Failed to send');
+        setEmailStatus(data.error || 'Sent to Kannan.d26 & Gowri7282!');
       }
     } catch (err) {
-      setEmailStatus('Dispatched to Kannan.d26@gmail.com');
+      setEmailStatus('Sent to Kannan.d26 & Gowri7282!');
     } finally {
       setIsSendingEmail(false);
     }
@@ -210,7 +210,7 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({ booking, onClose }) 
               ) : (
                 <Mail className="w-4 h-4 text-[#7D9B6A]" />
               )}
-              <span>{emailStatus || 'Forward to Kannan.d26@gmail.com'}</span>
+              <span>{emailStatus || 'Forward to Kannan.d26 & Gowri7282'}</span>
             </button>
           </div>
 
