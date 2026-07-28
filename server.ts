@@ -16,35 +16,24 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 const getSmtpUser = () => (process.env.SMTP_USER || process.env.GMAIL_USER || 'gowri7282@gmail.com').trim();
 const getSmtpPass = () => (process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || 'vgqk cykd debx nmgd').replace(/\s+/g, '');
 
-const createTransporter = (useSsl = false) => {
+const createTransporter = (useSsl = true) => {
   const user = getSmtpUser();
   const pass = getSmtpPass();
   const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-  const port = Number(process.env.SMTP_PORT) || (useSsl ? 465 : 587);
 
   if (host === 'smtp.gmail.com' || host === 'smtp.googlemail.com') {
     return nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: useSsl ? 465 : 587,
-      secure: useSsl, // true for 465, false for 587
+      service: 'gmail',
       auth: { user, pass },
-      tls: {
-        rejectUnauthorized: false,
-        ciphers: 'SSLv3',
-      },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 15000,
     });
   }
 
   return nodemailer.createTransport({
     host,
-    port,
-    secure: port === 465,
+    port: useSsl ? 465 : 587,
+    secure: useSsl,
     auth: { user, pass },
     tls: { rejectUnauthorized: false },
-    connectionTimeout: 10000,
   });
 };
 
@@ -392,7 +381,12 @@ async function sendBookingNotificationEmail(booking: Booking) {
   let isDelivered = false;
 
   // Dispatch Strategy 1: Brevo HTTP API (Highest reliability on Vercel over Port 443)
-  const brevoApiKey = process.env.BREVO_API_KEY || process.env.SENDINBLUE_API_KEY;
+  const brevoApiKey = (
+    process.env.BREVO_API_KEY ||
+    process.env.SENDINBLUE_API_KEY ||
+    (getSmtpPass().startsWith('xkeysib-') ? getSmtpPass() : '')
+  ).trim();
+
   if (brevoApiKey) {
     try {
       const response = await fetch('https://api.brevo.com/v3/smtp/email', {
@@ -412,6 +406,24 @@ async function sendBookingNotificationEmail(booking: Booking) {
       if (response.ok) {
         console.log('[BREVO SUCCESS] Booking notification dispatched to both Kannan.d26@gmail.com & gowri7282@gmail.com');
         isDelivered = true;
+
+        if (customerEmail && !adminRecipients.includes(customerEmail)) {
+          fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: {
+              'accept': 'application/json',
+              'api-key': brevoApiKey,
+              'content-type': 'application/json',
+            },
+            body: JSON.stringify({
+              sender: { name: 'KM PALACE', email: 'gowri7282@gmail.com' },
+              to: [{ email: customerEmail }],
+              cc: [{ email: 'gowri7282@gmail.com' }],
+              subject: `KM PALACE Booking Confirmation [${booking.booking_id}]`,
+              htmlContent: customerHtml,
+            }),
+          }).catch(err => console.warn('[BREVO CUSTOMER ERR]', err));
+        }
       } else {
         const errText = await response.text();
         console.warn('[BREVO NOTE]', errText);
