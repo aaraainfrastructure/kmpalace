@@ -153,7 +153,7 @@ export const BlogLeadForm: React.FC<BlogLeadFormProps> = ({
               <input
                 type="tel"
                 required
-                placeholder="e.g. +91 98406 38763"
+                placeholder="e.g. +91 91592 77277"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-[#C7A86D]/30 bg-white/10 text-white placeholder-white/40 text-xs sm:text-sm font-num focus:outline-none focus:border-[#C7A86D] focus:ring-1 focus:ring-[#C7A86D] transition-all"

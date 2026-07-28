@@ -416,7 +416,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
                 <input
                   type="tel"
                   required
-                  placeholder="e.g. +91 98401 23456"
+                  placeholder="e.g. +91 91592 77277"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="w-full pl-9 pr-3 py-2.5 rounded-[12px] border border-[rgba(199,168,109,0.3)] bg-white/70 text-[#2E2A26] text-sm focus:border-[#C7A86D] focus:outline-none transition-all placeholder:text-[#A09384]"
@@ -1056,7 +1056,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
                     <ul className="list-disc list-inside space-y-0.5 text-[11px] text-[#2E2A26] pl-1 font-sans">
                       <li>Select additional <strong>Valet Drivers</strong> & <strong>Security Personnel</strong> in Section 5 below to manage parking.</li>
                       <li>Stagger guest arrival times between Reception (evening) and Muhurtham (morning) to avoid peak bottleneck.</li>
-                      <li>Contact hall management at <strong>+91 9840638763</strong> to discuss special crowd management arrangements.</li>
+                      <li>Contact hall management at <strong>+91 9159277277</strong> to discuss special crowd management arrangements.</li>
                     </ul>
                   </div>
                 )}

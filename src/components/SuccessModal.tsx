@@ -216,7 +216,7 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({ booking, onClose }) 
 
           <div className="flex items-center space-x-2 w-full sm:w-auto">
             <a
-              href={`https://wa.me/919840638763?text=Hello%20KM%20Palace%20Team%2C%20I%20have%20submitted%20booking%20request%20${booking.booking_id}%20for%20${booking.marriage_date}.`}
+              href={`https://wa.me/919159277277?text=Hello%20KM%20Palace%20Team%2C%20I%20have%20submitted%20booking%20request%20${booking.booking_id}%20for%20${booking.marriage_date}.`}
               target="_blank"
               rel="noreferrer"
               className="flex-1 sm:flex-none px-5 py-2.5 rounded-[12px] bg-[#7D9B6A] hover:bg-[#6c875b] text-white font-semibold text-xs flex items-center justify-center space-x-2 transition-colors cursor-pointer shadow-xs"
