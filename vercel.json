@@ -16,6 +16,10 @@
     {
       "source": "/robots.txt",
       "destination": "/api/index"
+    },
+    {
+      "source": "/((?!api/.*).*)",
+      "destination": "/index.html"
     }
   ]
 }
