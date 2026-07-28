@@ -1,0 +1,6 @@
+{
+  "name": "KM PALACE - Smart Wedding Hall Booking System",
+  "description": "Premium mobile-first wedding hall booking application for KM PALACE with smart Muhurtham conflict detection rules, interactive booking calendar, admin dashboard, and email notifications.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

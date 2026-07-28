@@ -1,0 +1,127 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Inter', sans-serif;
+    background-color: #F9F5EF;
+    color: #2A2216;
+  }
+
+  h1, h2, h3, h4, h5, .font-serif, .font-display {
+    font-family: 'Fraunces', serif;
+  }
+
+  .font-num {
+    font-family: 'Inter', sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer utilities {
+  .glass {
+    background: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(199, 168, 109, 0.3);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.05);
+    border-radius: 24px;
+  }
+
+  .glass-card {
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.06);
+    border-radius: 24px;
+    transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .glass-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 25px 70px rgba(199, 168, 109, 0.12);
+    border-color: rgba(199, 168, 109, 0.5);
+  }
+
+  .glass-burgundy, .glass-dark {
+    background: rgba(245, 239, 230, 0.85);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(199, 168, 109, 0.4);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.06);
+    border-radius: 24px;
+  }
+
+  .btn-gold {
+    background: linear-gradient(135deg, #E8D8B0 0%, #C7A86D 100%);
+    color: #2E2A26;
+    height: 52px;
+    border-radius: 16px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    letter-spacing: 0.05em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 10px 25px -5px rgba(199, 168, 109, 0.35);
+    transition: all 300ms ease;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+  }
+
+  .btn-gold:hover {
+    box-shadow: 0 15px 30px -5px rgba(199, 168, 109, 0.5);
+    transform: translateY(-1px);
+  }
+
+  .gold-gradient {
+    background: linear-gradient(135deg, #E8D8B0 0%, #C7A86D 50%, #9B7A46 100%);
+  }
+
+  .burgundy-gradient {
+    background: linear-gradient(135deg, #C7A86D 0%, #9B7A46 100%);
+  }
+
+  .gold-border {
+    border: 1px solid rgba(199, 168, 109, 0.3);
+  }
+
+  .bg-handmade-paper {
+    background-color: #F9F5EF;
+    background-image: 
+      radial-gradient(circle at 10% 20%, rgba(232, 216, 176, 0.25) 0%, transparent 20%),
+      radial-gradient(circle at 90% 80%, rgba(199, 168, 109, 0.15) 0%, transparent 25%),
+      radial-gradient(circle at 50% 50%, rgba(245, 239, 230, 0.6) 0%, transparent 50%);
+  }
+
+  .bg-secondary-ivory {
+    background-color: #F5EFE6;
+  }
+
+  .text-primary-brown {
+    color: #2E2A26;
+  }
+
+  .text-secondary-brown {
+    color: #6F655B;
+  }
+
+  /* Remapping legacy maroon/red utility class triggers to Champagne Gold / Dark Gold */
+  .text-[#7A0019], .text-[#7a0019], .text-burgundy, .text-[#8B1E22] {
+    color: #9B7A46;
+  }
+
+  .bg-[#7A0019], .bg-[#7a0019], .bg-burgundy, .bg-[#8B1E22] {
+    background-color: #C7A86D;
+  }
+
+  .border-[#D4AF37], .border-[#d4af37], .border-gold {
+    border-color: rgba(199, 168, 109, 0.35);
+  }
+
+  .text-[#D4AF37], .text-[#d4af37], .text-gold {
+    color: #C7A86D;
+  }
+}
+
+
+
