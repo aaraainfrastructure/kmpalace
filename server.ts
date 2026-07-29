@@ -853,8 +853,15 @@ app.post('/api/bookings', async (req: Request, res: Response) => {
     saveServerData(data);
     await saveBookingToSupabase(newBooking);
 
-    // Trigger email notification to gowri7282@gmail.com
-    sendBookingNotificationEmail(newBooking).catch(err => console.error('Email trigger background error:', err));
+    // Await email dispatch synchronously so background process does not terminate before SMTP transmission completes
+    let emailStatus = 'QUEUED';
+    try {
+      const emailResult = await sendBookingNotificationEmail(newBooking);
+      emailStatus = emailResult.isDelivered ? 'DELIVERED' : 'FAILED';
+      console.log(`[BOOKING CREATED] Email dispatch status: ${emailStatus}`);
+    } catch (emailErr) {
+      console.error('[BOOKING CREATED EMAIL ERROR]', emailErr);
+    }
 
     res.status(201).json({
       success: true,
