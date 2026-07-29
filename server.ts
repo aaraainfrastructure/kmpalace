@@ -13,7 +13,7 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || proce
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 // Nodemailer Transporter & Resend API helper
-const getSmtpUser = () => (process.env.SMTP_USER || process.env.GMAIL_USER || 'gowri7282@gmail.com').trim();
+const getSmtpUser = () => (process.env.SMTP_USER || process.env.GMAIL_USER || 'Kannan.d26@gmail.com').trim();
 const getSmtpPass = () => (process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || 'vgqk cykd debx nmgd').replace(/\s+/g, '');
 
 const getResendApiKey = () => {
@@ -367,6 +367,7 @@ async function sendBookingNotificationEmail(booking: Booking) {
         <div style="background-color: #FFFDF9; border: 1px solid #D4AF37; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
           <p style="margin: 0 0 6px;"><strong>Booking ID:</strong> <span style="color: #7A0019; font-size: 16px; font-weight: bold;">${booking.booking_id}</span></p>
           <p style="margin: 0 0 6px;"><strong>Customer Name:</strong> ${booking.customer_name}</p>
+          <p style="margin: 0 0 6px;"><strong>Customer Address:</strong> ${booking.customer_address || 'N/A'}</p>
           <p style="margin: 0 0 6px;"><strong>Customer Phone:</strong> <a href="tel:${booking.phone}" style="color: #7A0019; font-weight: bold;">${booking.phone}</a></p>
           <p style="margin: 0;"><strong>Customer Email:</strong> ${booking.email}</p>
         </div>
@@ -375,16 +376,17 @@ async function sendBookingNotificationEmail(booking: Booking) {
           <tr style="background-color: #f8fafc;"><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Bride & Groom</td><td style="padding: 8px; border: 1px solid #ddd; color: #7A0019; font-weight: bold;">${brideGroomFormatted}</td></tr>
           <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Marriage Date</td><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">${formatDisplayDate(booking.marriage_date)}</td></tr>
           <tr style="background-color: #f8fafc;"><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Muhurtham Time</td><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">${booking.muhurtham_time}</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Blocked Dates</td><td style="padding: 8px; border: 1px solid #ddd; color: #dc2626; font-weight: bold;">${(booking.blocked_dates || [booking.marriage_date]).map(formatDisplayDate).join(' & ')}</td></tr>
-          <tr style="background-color: #f8fafc;"><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Function & Guests</td><td style="padding: 8px; border: 1px solid #ddd;">${booking.function_type} (${booking.guest_count} Guests)</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Requirements</td><td style="padding: 8px; border: 1px solid #ddd;">${(booking.requirements || []).join(', ')}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Check-In / Out Slot</td><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">${booking.from_time || '06:00'} → ${booking.end_time || '22:00'}</td></tr>
+          <tr style="background-color: #f8fafc;"><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Blocked Dates</td><td style="padding: 8px; border: 1px solid #ddd; color: #dc2626; font-weight: bold;">${(booking.blocked_dates || [booking.marriage_date]).map(formatDisplayDate).join(' & ')}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Function & Guests</td><td style="padding: 8px; border: 1px solid #ddd;">${booking.function_type} (${booking.guest_count} Guests)</td></tr>
+          <tr style="background-color: #f8fafc;"><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Requirements</td><td style="padding: 8px; border: 1px solid #ddd;">${(booking.requirements || []).join(', ')}</td></tr>
         </table>
       </div>
     </div>
   `;
 
   // Target recipients
-  const adminRecipients = ['Kannan.d26@gmail.com', 'gowri7282@gmail.com'];
+  const adminRecipients = ['Kannan.d26@gmail.com'];
   let isDelivered = false;
 
   // Dispatch Strategy 1: Resend HTTP API (Primary over Port 443)
@@ -470,7 +472,6 @@ async function sendBookingNotificationEmail(booking: Booking) {
             const custInfo = await activeTransporter.sendMail({
               from: `"KM PALACE" <${senderEmail}>`,
               to: customerEmail,
-              cc: 'gowri7282@gmail.com',
               subject: `KM PALACE Booking Confirmation [${booking.booking_id}]`,
               html: customerHtml,
             });
@@ -489,7 +490,7 @@ async function sendBookingNotificationEmail(booking: Booking) {
 
   console.log('----------------------------------------------------');
   console.log('[EMAIL DISPATCH LOG] Summary:');
-  console.log(`1. Management Emails (Kannan.d26@gmail.com & gowri7282@gmail.com): Status = ${isDelivered ? 'DELIVERED' : 'QUEUED/FALLBACK'}`);
+  console.log(`1. Management Email (Kannan.d26@gmail.com): Status = ${isDelivered ? 'DELIVERED' : 'QUEUED/FALLBACK'}`);
   console.log(`2. Customer Email (${customerEmail || 'N/A'}): Confirmation for ${booking.booking_id}`);
   console.log('----------------------------------------------------');
 }
@@ -674,6 +675,7 @@ app.post('/api/bookings', async (req: Request, res: Response) => {
       customer_name,
       phone,
       email,
+      customer_address,
       bride_name,
       groom_name,
       marriage_date,
@@ -698,6 +700,7 @@ app.post('/api/bookings', async (req: Request, res: Response) => {
     const brideNameVal = ((req.body.bride_name || req.body.brideName || '') as string).trim();
     const groomNameVal = ((req.body.groom_name || req.body.groomName || '') as string).trim();
     const customerNameVal = ((req.body.customer_name || req.body.customerName || '') as string).trim();
+    const customerAddressVal = ((customer_address || req.body.customerAddress || '') as string).trim();
 
     // Server-side validations
     if (!customerNameVal || !phone || !email || !marriage_date || !muhurtham_time) {
@@ -734,6 +737,7 @@ app.post('/api/bookings', async (req: Request, res: Response) => {
       customer_name: customerNameVal,
       phone: phone.trim(),
       email: email.trim(),
+      customer_address: customerAddressVal,
       bride_name: brideNameVal,
       groom_name: groomNameVal,
       marriage_date,

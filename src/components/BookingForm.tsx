@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, Clock, User, Phone, Mail, Heart, Users, Sparkles, AlertCircle, CheckCircle2, ShieldAlert, ShieldCheck, Check, Globe, CreditCard, Lock, X, ArrowRight, ChevronDown } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, User, Phone, Mail, MapPin, Heart, Users, Sparkles, AlertCircle, CheckCircle2, ShieldAlert, ShieldCheck, Check, Globe, CreditCard, Lock, X, ArrowRight, ChevronDown } from 'lucide-react';
 import { FunctionType, SpecialRequirement, Booking, AdminManualBlock } from '../types';
 import { calculateBlockedDates, checkBookingConflict, formatDisplayDate, getPreviousDay } from '../lib/bookingLogic';
 
@@ -10,38 +10,26 @@ interface BookingFormProps {
   onSubmitSuccess: (booking: Booking) => void;
 }
 
-const PRESET_MUHURTHAM_TIMES = [
-  '04:30 AM',
-  '05:30 AM',
-  '06:00 AM',
-  '06:30 AM',
-  '07:30 AM',
-  '09:00 AM',
-  '10:30 AM',
-  '11:45 AM',
-  '06:00 PM',
+const TIMES_24HR_CHECKIN = [
+  '00:00', '01:00', '02:00', '03:00', '04:00', '05:00',
+  '06:00', '07:00', '08:00', '09:00', '10:00', '11:00',
+  '12:00', '13:00', '14:00', '15:00', '16:00', '17:00',
+  '18:00', '19:00', '20:00', '21:00', '22:00', '23:00'
 ];
 
-const PRESET_FROM_TIMES = [
-  '04:30 AM',
-  '05:30 AM',
-  '06:00 AM',
-  '07:00 AM',
-  '08:00 AM',
-  '09:00 AM',
-  '03:00 PM',
-  '05:00 PM',
+const TIMES_24HR_CHECKOUT = [
+  '06:00', '07:00', '08:00', '09:00', '10:00', '11:00',
+  '12:00', '13:00', '14:00', '15:00', '16:00', '17:00',
+  '18:00', '19:00', '20:00', '21:00', '22:00', '23:00', '00:00'
 ];
 
-const PRESET_END_TIMES = [
-  '01:30 PM',
-  '03:00 PM',
-  '08:00 PM',
-  '09:30 PM',
-  '10:00 PM',
-  '11:30 PM',
-  '12:00 PM (Next Day)',
+const TIMES_24HR_MUHURTHAM = [
+  '04:30', '05:30', '06:00', '06:30', '07:30', '09:00', '10:30', '11:45', '18:00'
 ];
+
+const PRESET_MUHURTHAM_TIMES = TIMES_24HR_MUHURTHAM;
+const PRESET_FROM_TIMES = TIMES_24HR_CHECKIN;
+const PRESET_END_TIMES = TIMES_24HR_CHECKOUT;
 
 const FUNCTION_TYPES: FunctionType[] = [
   'Wedding',
@@ -70,6 +58,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
   const [customerName, setCustomerName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [customerAddress, setCustomerAddress] = useState('');
   const [brideName, setBrideName] = useState('');
   const [groomName, setGroomName] = useState('');
   
@@ -78,7 +67,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
 
   const getInitialAvailableDate = (start: string, bookingsList: Booking[], adminBlocksList: AdminManualBlock[]) => {
     if (start && start >= todayStr) {
-      const conflict = checkBookingConflict(start, '06:00 AM', bookingsList, adminBlocksList);
+      const conflict = checkBookingConflict(start, '06:00', bookingsList, adminBlocksList);
       if (!conflict.hasConflict) return start;
     }
     let curr = new Date(todayStr);
@@ -87,7 +76,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
       const m = String(curr.getMonth() + 1).padStart(2, '0');
       const d = String(curr.getDate()).padStart(2, '0');
       const ds = `${y}-${m}-${d}`;
-      const conflict = checkBookingConflict(ds, '06:00 AM', bookingsList, adminBlocksList);
+      const conflict = checkBookingConflict(ds, '06:00', bookingsList, adminBlocksList);
       if (!conflict.hasConflict) return ds;
       curr.setDate(curr.getDate() + 1);
     }
@@ -103,9 +92,9 @@ export const BookingForm: React.FC<BookingFormProps> = ({
       setMarriageDate(initialDate);
     }
   }, [initialDate, todayStr]);
-  const [muhurthamTime, setMuhurthamTime] = useState('06:00 AM');
-  const [fromTime, setFromTime] = useState('06:00 AM');
-  const [endTime, setEndTime] = useState('10:00 PM');
+  const [muhurthamTime, setMuhurthamTime] = useState('06:00');
+  const [fromTime, setFromTime] = useState('06:00');
+  const [endTime, setEndTime] = useState('22:00');
   const [functionType, setFunctionType] = useState<FunctionType>('Wedding');
   const [guestCount, setGuestCount] = useState<number>(600);
   const [selectedRequirements, setSelectedRequirements] = useState<SpecialRequirement[]>([
@@ -260,6 +249,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
       customer_name: customerName,
       phone,
       email,
+      customer_address: customerAddress,
       bride_name: brideName,
       groom_name: groomName,
       marriage_date: marriageDate,
@@ -315,6 +305,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
       customer_name: customerName,
       phone,
       email,
+      customer_address: customerAddress,
       bride_name: brideName,
       groom_name: groomName,
       marriage_date: marriageDate,
@@ -356,14 +347,24 @@ export const BookingForm: React.FC<BookingFormProps> = ({
       setErrorMessage('Please enter Customer Name.');
       return;
     }
-    if (!phone.trim() || phone.trim().length < 8) {
-      setErrorMessage('Please enter a valid Phone Number (minimum 8 digits).');
+
+    const cleanPhone = phone.replace(/[\s\-\+\(\)]/g, '');
+    if (!cleanPhone || cleanPhone.length < 10) {
+      setErrorMessage('Please enter a valid 10-digit Mobile / Phone Number (e.g. 9159277277).');
       return;
     }
-    if (!email.trim() || !email.includes('@')) {
-      setErrorMessage('Please enter a valid Email Address.');
+
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!email.trim() || !emailRegex.test(email.trim())) {
+      setErrorMessage('Please enter a valid Email Address (e.g. name@example.com).');
       return;
     }
+
+    if (!customerAddress.trim()) {
+      setErrorMessage('Please enter Customer Residential Address.');
+      return;
+    }
+
     if (!marriageDate) {
       setErrorMessage('Please select a Marriage Date.');
       return;
@@ -447,13 +448,13 @@ export const BookingForm: React.FC<BookingFormProps> = ({
 
             <div>
               <label className="block text-xs font-semibold text-[#2E2A26] mb-1">
-                Phone Number <span className="text-[#C7A86D]">*</span>
+                Phone / Mobile Number <span className="text-[#C7A86D]">*</span>
               </label>
               <div className="relative">
                 <input
                   type="tel"
                   required
-                  placeholder="e.g. +91 91592 77277"
+                  placeholder="e.g. 9159277277"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="w-full pl-9 pr-3 py-2.5 rounded-[12px] border border-[rgba(199,168,109,0.3)] bg-white/70 text-[#2E2A26] text-sm focus:border-[#C7A86D] focus:outline-none transition-all placeholder:text-[#A09384]"
@@ -477,6 +478,23 @@ export const BookingForm: React.FC<BookingFormProps> = ({
                 />
                 <Mail className="w-4 h-4 text-[#A09384] absolute left-3 top-3" />
               </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-[#2E2A26] mb-1">
+              Customer Address <span className="text-[#C7A86D]">*</span>
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                required
+                placeholder="e.g. Door No. 45, Gandhi Road, Anna Nagar, Chennai 600040"
+                value={customerAddress}
+                onChange={(e) => setCustomerAddress(e.target.value)}
+                className="w-full pl-9 pr-3 py-2.5 rounded-[12px] border border-[rgba(199,168,109,0.3)] bg-white/70 text-[#2E2A26] text-sm focus:border-[#C7A86D] focus:outline-none transition-all placeholder:text-[#A09384]"
+              />
+              <MapPin className="w-4 h-4 text-[#A09384] absolute left-3 top-3" />
             </div>
           </div>
 
@@ -645,7 +663,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
                               {/* Calendar Day Tiles */}
                               <div className="grid grid-cols-7 gap-1.5">
                                 {days.map((dateStr, idx) => {
-                                  if (!dateStr) return <div key={`p-empty-${idx}`} className="h-10 sm:h-11" />;
+                                  if (!dateStr) return <div key={`p-empty-${idx}`} className="h-11 sm:h-12" />;
                                   const dayNum = parseInt(dateStr.split('-')[2], 10);
                                   const isSelected = marriageDate === dateStr;
                                   const isBooked = bookedDatesSet.has(dateStr);
@@ -657,21 +675,21 @@ export const BookingForm: React.FC<BookingFormProps> = ({
                                       onClick={() => {
                                         setMarriageDate(dateStr);
                                       }}
-                                      className={`h-10 sm:h-11 rounded-[12px] text-xs font-bold transition-all flex flex-col items-center justify-center relative font-num cursor-pointer ${
+                                      className={`h-11 sm:h-12 rounded-[12px] text-xs font-bold transition-all flex flex-col items-center justify-center relative font-num cursor-pointer ${
                                         isSelected
                                           ? isBooked
-                                            ? 'bg-[#E11D48] text-white ring-2 ring-[#BE123C] font-extrabold shadow-md z-10'
-                                            : 'bg-[#059669] text-white ring-2 ring-[#10B981] font-extrabold shadow-md scale-102 z-10'
+                                            ? 'bg-[#E11D48] text-white ring-4 ring-[#9F1239] font-extrabold shadow-lg scale-105 z-20'
+                                            : 'bg-[#059669] text-white ring-4 ring-[#C7A86D] font-extrabold shadow-lg scale-105 z-20'
                                           : isBooked
-                                          ? 'bg-[#FFF1F2] text-[#9F1239] border border-[#FECDD3] hover:bg-[#FFE4E6]'
-                                          : 'bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0] hover:bg-[#D1FAE5]'
+                                          ? 'bg-[#E11D48] text-white border border-[#BE123C] hover:bg-[#BE123C] shadow-xs'
+                                          : 'bg-[#059669] text-white border border-[#047857] hover:bg-[#047857] shadow-xs'
                                       }`}
                                       title={`${dateStr}: ${isBooked ? 'Booked / Hall Unavailable (Red)' : 'Available (Green)'}`}
                                     >
-                                      <span>{dayNum}</span>
-                                      {isBooked && !isSelected && (
-                                        <span className="w-1.5 h-1.5 rounded-full bg-[#E11D48] absolute bottom-1" />
-                                      )}
+                                      <span className="text-sm font-black">{dayNum}</span>
+                                      <span className="text-[9px] font-semibold opacity-90 leading-none mt-0.5">
+                                        {isBooked ? 'Booked' : 'Avail'}
+                                      </span>
                                     </button>
                                   );
                                 })}
@@ -681,131 +699,79 @@ export const BookingForm: React.FC<BookingFormProps> = ({
                         })()}
                       </div>
                     )}
+
+                    {/* PROMOTED TIME SELECTION BANNER AFTER CHOOSING DATE */}
+                    <div className="mt-3 p-4 rounded-[18px] bg-gradient-to-r from-[rgba(245,239,230,0.95)] to-[rgba(255,255,255,0.95)] border-2 border-[rgba(199,168,109,0.5)] shadow-xs space-y-3">
+                      <div className="flex items-center space-x-2 text-[#2E2A26] font-bold text-xs sm:text-sm border-b border-[rgba(199,168,109,0.25)] pb-2">
+                        <Clock className="w-4 h-4 text-[#C7A86D]" />
+                        <span className="text-[#9B7A46] uppercase text-[10px] font-black tracking-wider bg-[rgba(199,168,109,0.2)] px-2 py-0.5 rounded-full">Step 2: Time Selection (24hrs Format)</span>
+                        <span>Choose Event Slot Timing</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-[#2E2A26] mb-1">
+                            Check-In Time (24hrs) <span className="text-[#C7A86D]">*</span>
+                          </label>
+                          <select
+                            value={fromTime}
+                            onChange={(e) => setFromTime(e.target.value)}
+                            className="w-full px-3 py-2.5 rounded-[12px] border border-[rgba(199,168,109,0.4)] bg-white font-bold text-sm text-[#2E2A26] focus:border-[#C7A86D] focus:outline-none transition-all cursor-pointer font-num"
+                          >
+                            {TIMES_24HR_CHECKIN.map((t) => (
+                              <option key={t} value={t}>
+                                {t} ({t < '12:00' ? `${t} AM` : t === '12:00' ? '12:00 PM (Noon)' : `${String(parseInt(t.split(':')[0]) - 12).padStart(2, '0')}:${t.split(':')[1]} PM`})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-[#2E2A26] mb-1">
+                            Check-Out Time (24hrs) <span className="text-[#C7A86D]">*</span>
+                          </label>
+                          <select
+                            value={endTime}
+                            onChange={(e) => setEndTime(e.target.value)}
+                            className="w-full px-3 py-2.5 rounded-[12px] border border-[rgba(199,168,109,0.4)] bg-white font-bold text-sm text-[#2E2A26] focus:border-[#C7A86D] focus:outline-none transition-all cursor-pointer font-num"
+                          >
+                            {TIMES_24HR_CHECKOUT.map((t) => (
+                              <option key={t} value={t}>
+                                {t} ({t === '00:00' ? '00:00 Midnight' : t < '12:00' ? `${t} AM` : t === '12:00' ? '12:00 PM (Noon)' : `${String(parseInt(t.split(':')[0]) - 12).padStart(2, '0')}:${t.split(':')[1]} PM`})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-[#2E2A26] mb-1">
+                            Auspicious Muhurtham Time (24hrs) <span className="text-[#C7A86D]">*</span>
+                          </label>
+                          <select
+                            value={muhurthamTime}
+                            onChange={(e) => {
+                              setMuhurthamTime(e.target.value);
+                              if (fromTime === '06:00') setFromTime(e.target.value);
+                            }}
+                            className="w-full px-3 py-2.5 rounded-[12px] border border-[rgba(199,168,109,0.4)] bg-white font-bold text-sm text-[#2E2A26] focus:border-[#C7A86D] focus:outline-none transition-all cursor-pointer font-num"
+                          >
+                            {TIMES_24HR_MUHURTHAM.map((t) => (
+                              <option key={t} value={t}>
+                                {t} ({t < '12:00' ? `${t} AM` : t === '12:00' ? '12:00 PM (Noon)' : `${String(parseInt(t.split(':')[0]) - 12).padStart(2, '0')}:${t.split(':')[1]} PM`})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="p-2.5 rounded-[12px] bg-white/80 border border-[rgba(199,168,109,0.2)] text-[11px] text-[#6F655B] flex flex-wrap items-center justify-between font-num gap-2">
+                        <span>Selected Slot: <strong className="text-[#2E2A26]">{fromTime}</strong> to <strong className="text-[#2E2A26]">{endTime}</strong> (24hrs format)</span>
+                        <span className="text-[#9B7A46] font-semibold">Standard 24hr slot: 12:00 Day 1 → 12:00 Day 2</span>
+                      </div>
+                    </div>
                   </>
                 );
               })()}
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-[#2E2A26] mb-1">
-                Auspicious Muhurtham Time <span className="text-[#C7A86D]">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. 06:00 AM"
-                  value={muhurthamTime}
-                  onChange={(e) => {
-                    setMuhurthamTime(e.target.value);
-                    if (!fromTime || fromTime === '06:00 AM') setFromTime(e.target.value);
-                  }}
-                  className="w-full pl-9 pr-3 py-2.5 rounded-[12px] border border-[rgba(199,168,109,0.3)] bg-white/70 text-[#2E2A26] text-sm font-semibold focus:border-[#C7A86D] focus:outline-none transition-all font-num"
-                />
-                <Clock className="w-4 h-4 text-[#C7A86D] absolute left-3 top-3" />
-              </div>
-
-              {/* Preset Time Buttons */}
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {PRESET_MUHURTHAM_TIMES.map((time) => (
-                  <button
-                    key={time}
-                    type="button"
-                    onClick={() => {
-                      setMuhurthamTime(time);
-                      setFromTime(time);
-                    }}
-                    className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all font-num cursor-pointer ${
-                      muhurthamTime === time
-                        ? 'bg-[linear-gradient(135deg,#E8D8B0_0%,#C7A86D_100%)] text-[#2E2A26] font-bold shadow-xs'
-                        : 'bg-white/60 text-[#6F655B] hover:bg-white hover:text-[#2E2A26] border border-[rgba(199,168,109,0.2)]'
-                    }`}
-                  >
-                    {time}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* FROM TIME AND END TIME SELECTION */}
-          <div className="p-4 rounded-[18px] bg-white/80 border border-[rgba(199,168,109,0.3)] space-y-3">
-            <p className="text-xs font-bold text-[#2E2A26] flex items-center space-x-1.5">
-              <Clock className="w-4 h-4 text-[#C7A86D]" />
-              <span>Event Booking Slot Timing (From Time → End Time)</span>
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-[#2E2A26] mb-1">
-                  From Time (Event Start / Guest Arrival) <span className="text-[#C7A86D]">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. 06:00 AM"
-                    value={fromTime}
-                    onChange={(e) => setFromTime(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 rounded-[12px] border border-[rgba(199,168,109,0.3)] bg-white/90 text-[#2E2A26] text-sm font-semibold focus:border-[#C7A86D] focus:outline-none transition-all font-num"
-                  />
-                  <Clock className="w-4 h-4 text-[#C7A86D] absolute left-3 top-3" />
-                </div>
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {PRESET_FROM_TIMES.map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => setFromTime(t)}
-                      className={`px-2 py-0.5 rounded-md text-[10px] font-medium transition-all font-num cursor-pointer ${
-                        fromTime === t
-                          ? 'bg-[#C7A86D] text-white font-bold'
-                          : 'bg-white text-[#6F655B] border border-[rgba(199,168,109,0.2)]'
-                      }`}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-[#2E2A26] mb-1">
-                  End Time (Event Wrap / Hall Vacate) <span className="text-[#C7A86D]">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. 10:00 PM"
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 rounded-[12px] border border-[rgba(199,168,109,0.3)] bg-white/90 text-[#2E2A26] text-sm font-semibold focus:border-[#C7A86D] focus:outline-none transition-all font-num"
-                  />
-                  <Clock className="w-4 h-4 text-[#C7A86D] absolute left-3 top-3" />
-                </div>
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {PRESET_END_TIMES.map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => setEndTime(t)}
-                      className={`px-2 py-0.5 rounded-md text-[10px] font-medium transition-all font-num cursor-pointer ${
-                        endTime === t
-                          ? 'bg-[#C7A86D] text-white font-bold'
-                          : 'bg-white text-[#6F655B] border border-[rgba(199,168,109,0.2)]'
-                      }`}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="p-2.5 rounded-[12px] bg-[rgba(245,239,230,0.6)] text-[11px] text-[#6F655B] flex items-center justify-between font-num">
-              <span>Selected Duration: <strong className="text-[#2E2A26]">{fromTime}</strong> to <strong className="text-[#2E2A26]">{endTime}</strong></span>
-              <span className="text-[#9B7A46] font-semibold">Standard 24hr slot: 12 PM Day 1 → 12 PM Day 2</span>
             </div>
           </div>
 

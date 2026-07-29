@@ -46,28 +46,15 @@ export const Hero: React.FC<HeroProps> = ({ onBookNow, onViewCalendar }) => {
   return (
     <div className="relative w-full h-screen min-h-[650px] bg-[#0A0908] text-white overflow-hidden flex flex-col justify-between transition-colors duration-500">
       
-      {/* FULL-SCREEN CINEMATIC BACKGROUND VIDEO LAYER */}
+      {/* FULL-SCREEN CINEMATIC BACKGROUND YOUTUBE VIDEO LAYER */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none select-none">
-        {/* Poster Image for fast initial paint and fallback */}
-        <img
-          src={heroImg}
-          alt="KM Palace Kalyana Mandapam Kundrathur"
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${
-            videoLoaded ? 'opacity-0' : 'opacity-60'
-          }`}
-          loading="eager"
-        />
-
         {/* YouTube Video Background Banner */}
-        <div className="absolute inset-0 w-full h-full overflow-hidden">
+        <div className="absolute inset-0 w-full h-full overflow-hidden bg-black">
           <iframe
             src="https://www.youtube-nocookie.com/embed/2kfWwPAjxPE?autoplay=1&mute=1&loop=1&playlist=2kfWwPAjxPE&controls=0&showinfo=0&autohide=1&modestbranding=1&rel=0&playsinline=1&enablejsapi=1&iv_load_policy=3"
             title="KM Palace Kalyana Mandapam Hero Video"
             allow="autoplay; encrypted-media; picture-in-picture"
-            onLoad={() => setVideoLoaded(true)}
-            className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300%] h-[300%] min-w-full min-h-full object-cover pointer-events-none filter brightness-95 contrast-[1.05] transition-opacity duration-1000 ${
-              videoLoaded ? 'opacity-90' : 'opacity-0'
-            }`}
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300%] h-[300%] min-w-full min-h-full object-cover pointer-events-none filter brightness-95 contrast-[1.05] opacity-90"
           />
         </div>
 

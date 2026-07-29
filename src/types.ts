@@ -22,6 +22,7 @@ export interface Booking {
   customer_name: string;
   phone: string;
   email: string;
+  customer_address?: string;
   bride_name: string;
   groom_name: string;
   marriage_date: string; // YYYY-MM-DD
