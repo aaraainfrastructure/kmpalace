@@ -369,7 +369,7 @@ async function sendBookingNotificationEmail(booking: Booking) {
     <div style="font-family: Arial, sans-serif; max-width: 650px; margin: 0 auto; border: 2px solid #7A0019; border-radius: 8px; overflow: hidden; background-color: #ffffff;">
       <div style="background-color: #7A0019; color: #D4AF37; padding: 20px; text-align: center;">
         <h1 style="margin: 0; font-size: 24px; letter-spacing: 2px;">KM PALACE MANAGER ALERT</h1>
-        <p style="margin: 4px 0 0; font-size: 12px; text-transform: uppercase; font-weight: bold;">New Booking Submitted to Kannan.d26@gmail.com</p>
+        <p style="margin: 4px 0 0; font-size: 12px; text-transform: uppercase; font-weight: bold; color: #F1D382;">New Booking Notification & Receipt</p>
       </div>
 
       <div style="padding: 20px; color: #333333; font-size: 13px;">
@@ -389,6 +389,7 @@ async function sendBookingNotificationEmail(booking: Booking) {
           <tr style="background-color: #f8fafc;"><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Blocked Dates</td><td style="padding: 8px; border: 1px solid #ddd; color: #dc2626; font-weight: bold;">${(booking.blocked_dates || [booking.marriage_date]).map(formatDisplayDate).join(' & ')}</td></tr>
           <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Function & Guests</td><td style="padding: 8px; border: 1px solid #ddd;">${booking.function_type} (${booking.guest_count} Guests)</td></tr>
           <tr style="background-color: #f8fafc;"><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Requirements</td><td style="padding: 8px; border: 1px solid #ddd;">${(booking.requirements || []).join(', ')}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Special Notes / Remarks</td><td style="padding: 8px; border: 1px solid #ddd; color: #1A202C;">${booking.notes || 'None'}</td></tr>
         </table>
       </div>
     </div>
@@ -528,43 +529,49 @@ app.get('/api/health', (req: Request, res: Response) => {
 });
 
 app.all('/api/test-email', async (req: Request, res: Response) => {
-  const targetEmail = (req.query.email as string) || (req.body?.email as string) || 'Kannan.d26@gmail.com';
-  const dummyBooking: Booking = {
-    id: `bk_test_${Date.now()}`,
-    booking_id: `KM-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-TEST`,
-    customer_name: 'Kannan D Test',
-    customer_address: 'KM Palace Test Address, Chennai',
-    phone: '9159277277',
+  const data = await loadDataWithSupabase();
+  const latestRealBooking = data.bookings[0];
+
+  const targetEmail = (req.query.email as string) || (req.body?.email as string) || latestRealBooking?.email || 'Kannan.d26@gmail.com';
+  
+  const activeBooking: Booking = {
+    id: latestRealBooking?.id || `bk_${Date.now()}`,
+    booking_id: latestRealBooking?.booking_id || `KM-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-001`,
+    customer_name: (req.body?.customer_name || req.query?.customer_name as string) || latestRealBooking?.customer_name || 'Kannan D',
+    customer_address: (req.body?.customer_address || req.query?.customer_address as string) || latestRealBooking?.customer_address || 'Kavanur, Chembarambakkam, Tamil Nadu',
+    phone: (req.body?.phone || req.query?.phone as string) || latestRealBooking?.phone || '9159277277',
     email: targetEmail,
-    bride_name: 'Test Bride',
-    groom_name: 'Test Groom',
-    marriage_date: new Date().toISOString().slice(0, 10),
-    muhurtham_time: '06:00',
-    from_time: '06:00',
-    end_time: '22:00',
-    function_type: 'Wedding',
-    guest_count: 500,
-    requirements: ['Decoration', 'Catering'],
-    blocked_previous_day: true,
-    blocked_dates: [new Date().toISOString().slice(0, 10)],
-    booking_status: 'Confirmed',
-    created_at: new Date().toISOString(),
-    notes: 'Direct system test email dispatch verification',
-    estimated_amount: 350000,
-    payment_method: 'UPI',
-    payment_gateway: 'Manual',
-    currency: 'INR',
-    customer_region: 'India',
-    payment_status: 'Pending',
-    advance_paid_amount: 0
+    bride_name: (req.body?.bride_name || req.query?.bride_name as string) || latestRealBooking?.bride_name || '',
+    groom_name: (req.body?.groom_name || req.query?.groom_name as string) || latestRealBooking?.groom_name || '',
+    marriage_date: (req.body?.marriage_date || req.query?.marriage_date as string) || latestRealBooking?.marriage_date || new Date().toISOString().slice(0, 10),
+    muhurtham_time: (req.body?.muhurtham_time || req.query?.muhurtham_time as string) || latestRealBooking?.muhurtham_time || '06:00',
+    from_time: latestRealBooking?.from_time || '06:00',
+    end_time: latestRealBooking?.end_time || '22:00',
+    function_type: latestRealBooking?.function_type || 'Wedding',
+    guest_count: latestRealBooking?.guest_count || 500,
+    requirements: latestRealBooking?.requirements || ['Decoration', 'Catering'],
+    blocked_previous_day: latestRealBooking?.blocked_previous_day ?? true,
+    blocked_dates: latestRealBooking?.blocked_dates || [new Date().toISOString().slice(0, 10)],
+    booking_status: latestRealBooking?.booking_status || 'Confirmed',
+    created_at: latestRealBooking?.created_at || new Date().toISOString(),
+    notes: (req.body?.notes || req.query?.notes as string) || latestRealBooking?.notes || 'Direct customer booking submission',
+    estimated_amount: latestRealBooking?.estimated_amount || 364500,
+    payment_method: latestRealBooking?.payment_method || 'UPI',
+    payment_gateway: latestRealBooking?.payment_gateway || 'Manual',
+    currency: latestRealBooking?.currency || 'INR',
+    customer_region: latestRealBooking?.customer_region || 'India',
+    payment_status: latestRealBooking?.payment_status || 'Pending',
+    advance_paid_amount: latestRealBooking?.advance_paid_amount || 0
   };
 
   try {
-    const dispatchResult = await sendBookingNotificationEmail(dummyBooking);
+    const dispatchResult = await sendBookingNotificationEmail(activeBooking);
     res.json({
       success: true,
-      message: `Test email dispatched to customer (${targetEmail}) and both management IDs (Kannan.d26@gmail.com & gowri7282@gmail.com).`,
-      booking_id: dummyBooking.booking_id,
+      message: `Email dispatched using ${latestRealBooking ? 'latest customer booking details' : 'submitted parameters'} for ${activeBooking.customer_name}.`,
+      booking_id: activeBooking.booking_id,
+      customer_name: activeBooking.customer_name,
+      customer_email: activeBooking.email,
       delivery_status: dispatchResult.isDelivered ? 'DELIVERED' : 'FAILED',
       logs: dispatchResult.logs
     });
