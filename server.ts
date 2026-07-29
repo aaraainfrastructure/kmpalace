@@ -226,13 +226,11 @@ import { Resend } from 'resend';
 // Nodemailer and Resend dispatch logic
 async function sendBookingNotificationEmail(booking: Booking) {
   const primaryEmail = 'Kannan.d26@gmail.com';
-  const ccEmail = 'gowri7282@gmail.com';
   const customerEmail = booking.email?.trim();
 
   console.log(`[EMAIL DISPATCH] Triggering notifications for Booking Ref: ${booking.booking_id}`);
-  console.log(`  -> Customer Email: ${customerEmail}`);
-  console.log(`  -> Primary Email: ${primaryEmail}`);
-  console.log(`  -> CC Email: ${ccEmail}`);
+  console.log(`  -> Customer Email: ${customerEmail || 'None'}`);
+  console.log(`  -> Owner Recipient: ${primaryEmail}`);
 
   const brideNameClean = (booking.bride_name || '').trim();
   const groomNameClean = (booking.groom_name || '').trim();
@@ -395,8 +393,8 @@ async function sendBookingNotificationEmail(booking: Booking) {
     </div>
   `;
 
-  // Target recipients for management alerts
-  const adminRecipients = ['Kannan.d26@gmail.com', 'gowri7282@gmail.com'];
+  // Target recipients for management alerts (Owner only: Kannan.d26@gmail.com)
+  const adminRecipients = ['Kannan.d26@gmail.com'];
   let isDelivered = false;
   const dispatchLogs: string[] = [];
 
@@ -407,16 +405,17 @@ async function sendBookingNotificationEmail(booking: Booking) {
       const activeTransporter = createTransporter(useSsl);
       const senderEmail = getSmtpUser();
 
-      // Send dedicated direct email to each management recipient (Kannan.d26@gmail.com and gowri7282@gmail.com)
+      // Send dedicated direct email to owner (Kannan.d26@gmail.com)
       for (const recipient of adminRecipients) {
         try {
           const mgmtInfo = await activeTransporter.sendMail({
-            from: `"KM PALACE Booking" <${senderEmail}>`,
+            from: `"KM PALACE Booking Alert" <${senderEmail}>`,
             to: recipient,
+            replyTo: customerEmail || 'Kannan.d26@gmail.com',
             subject: `[NEW BOOKING ALERT] ${booking.customer_name} (${booking.booking_id})`,
             html: managerHtml,
           });
-          const logMsg = `[NODEMAILER SUCCESS] Sent management alert directly to ${recipient} (Message ID: ${mgmtInfo.messageId})`;
+          const logMsg = `[NODEMAILER SUCCESS] Sent owner alert directly to ${recipient} (Message ID: ${mgmtInfo.messageId})`;
           console.log(logMsg);
           dispatchLogs.push(logMsg);
           isDelivered = true;
@@ -427,12 +426,13 @@ async function sendBookingNotificationEmail(booking: Booking) {
         }
       }
 
-      // Send customer confirmation copy
-      if (customerEmail) {
+      // Send customer confirmation copy if different from owner email
+      if (customerEmail && customerEmail.toLowerCase() !== 'kannan.d26@gmail.com') {
         try {
           const custInfo = await activeTransporter.sendMail({
-            from: `"KM PALACE" <${senderEmail}>`,
+            from: `"KM PALACE Booking" <${senderEmail}>`,
             to: customerEmail,
+            replyTo: 'Kannan.d26@gmail.com',
             subject: `KM PALACE Booking Confirmation [${booking.booking_id}]`,
             html: customerHtml,
           });
@@ -1030,12 +1030,11 @@ app.post('/api/test-email', async (req: Request, res: Response) => {
     const info = await activeTransporter.sendMail({
       from: `"KM PALACE Test" <${senderEmail}>`,
       to: recipient,
-      cc: 'gowri7282@gmail.com',
       subject: `KM PALACE - Email Delivery Test`,
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px; border: 2px solid #C7A86D;">
           <h2>KM PALACE Email System Active</h2>
-          <p>This is a test notification from KM PALACE sent to <strong>${recipient}</strong> and CC <strong>gowri7282@gmail.com</strong>.</p>
+          <p>This is a test notification from KM PALACE sent directly to <strong>${recipient}</strong>.</p>
           <p>Time: ${new Date().toLocaleString()}</p>
         </div>
       `,
@@ -1046,7 +1045,7 @@ app.post('/api/test-email', async (req: Request, res: Response) => {
   }
 });
 
-// POST Blog Lead Submission Endpoint - Forwards lead details to Kannan.d26@gmail.com & gowri7282@gmail.com
+// POST Blog Lead Submission Endpoint - Forwards lead details to Kannan.d26@gmail.com
 app.post('/api/leads', async (req: Request, res: Response) => {
   try {
     const {
@@ -1077,7 +1076,7 @@ app.post('/api/leads', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'You must agree to the Privacy Policy to submit.' });
     }
 
-    const leadRecipients = ['Kannan.d26@gmail.com', 'gowri7282@gmail.com'];
+    const leadRecipients = ['Kannan.d26@gmail.com'];
 
     const leadHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 650px; margin: 0 auto; border: 2px solid #C7A86D; border-radius: 8px; overflow: hidden; background-color: #ffffff;">
