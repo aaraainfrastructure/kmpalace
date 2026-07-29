@@ -156,6 +156,7 @@ async function saveBookingToSupabase(booking: Booking) {
       booking_id: booking.booking_id,
       customer_name: booking.customer_name,
       name: booking.customer_name,
+      customer_address: booking.customer_address || '',
       phone: booking.phone,
       email: booking.email,
       bride_name: booking.bride_name,
@@ -163,19 +164,27 @@ async function saveBookingToSupabase(booking: Booking) {
       marriage_date: booking.marriage_date,
       booking_date: booking.marriage_date,
       muhurtham_time: booking.muhurtham_time,
+      from_time: booking.from_time,
+      end_time: booking.end_time,
       function_type: booking.function_type,
       guest_count: booking.guest_count,
+      requirements: booking.requirements,
+      blocked_previous_day: booking.blocked_previous_day,
+      blocked_dates: booking.blocked_dates,
       total_amount: booking.estimated_amount,
       estimated_amount: booking.estimated_amount,
       payment_status: booking.payment_status,
+      payment_method: booking.payment_method,
+      advance_paid_amount: booking.advance_paid_amount,
       booking_status: booking.booking_status,
+      notes: booking.notes,
       created_at: booking.created_at,
     };
 
     const { error } = await supabase.from('bookings').upsert([payload], { onConflict: 'id' });
     if (error) {
       console.warn('[Supabase Upsert Warning]:', error.message || error);
-      const { error: insError } = await supabase.from('bookings').insert([booking]);
+      const { error: insError } = await supabase.from('bookings').insert([payload]);
       if (insError) {
         console.warn('[Supabase Direct Insert Warning]:', insError.message || insError);
       }
@@ -772,8 +781,14 @@ app.post('/api/bookings', async (req: Request, res: Response) => {
     // Calculate dates to block
     const { blockedDates, blockedPreviousDay } = calculateBlockedDates(marriage_date, muhurtham_time);
 
-    // Generate reference ID like KM-20260722-001
-    const booking_id = generateBookingId(data.nextSequence || data.bookings.length + 1);
+    // Generate unique reference ID like KM-20260729-001
+    let seq = data.nextSequence || (data.bookings.length + 1);
+    let candidateBookingId = generateBookingId(seq);
+    while (data.bookings.some((b) => b.booking_id === candidateBookingId)) {
+      seq++;
+      candidateBookingId = generateBookingId(seq);
+    }
+    const booking_id = candidateBookingId;
 
     const newBooking: Booking = {
       id: 'bk_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
@@ -786,8 +801,8 @@ app.post('/api/bookings', async (req: Request, res: Response) => {
       groom_name: groomNameVal,
       marriage_date,
       muhurtham_time,
-      from_time: from_time || muhurtham_time || '06:00 AM',
-      end_time: end_time || '10:00 PM',
+      from_time: from_time || muhurtham_time || '06:00',
+      end_time: end_time || '22:00',
       function_type: function_type || 'Wedding',
       guest_count: Number(guest_count) || 500,
       requirements: Array.isArray(requirements) ? requirements : [],
@@ -808,7 +823,7 @@ app.post('/api/bookings', async (req: Request, res: Response) => {
     };
 
     data.bookings.unshift(newBooking);
-    data.nextSequence = (data.nextSequence || 1) + 1;
+    data.nextSequence = seq + 1;
     saveServerData(data);
     await saveBookingToSupabase(newBooking);
 
