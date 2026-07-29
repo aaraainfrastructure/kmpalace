@@ -407,22 +407,24 @@ async function sendBookingNotificationEmail(booking: Booking) {
       const activeTransporter = createTransporter(useSsl);
       const senderEmail = getSmtpUser();
 
-      // Send to management recipients (Kannan.d26@gmail.com and gowri7282@gmail.com)
-      try {
-        const mgmtInfo = await activeTransporter.sendMail({
-          from: `"KM PALACE Booking" <${senderEmail}>`,
-          to: adminRecipients,
-          subject: `New Booking Alert - ${booking.customer_name} (${booking.booking_id})`,
-          html: managerHtml,
-        });
-        const logMsg = `[NODEMAILER SUCCESS] Sent management alert to ${adminRecipients.join(', ')} (Message ID: ${mgmtInfo.messageId})`;
-        console.log(logMsg);
-        dispatchLogs.push(logMsg);
-        isDelivered = true;
-      } catch (recipErr: any) {
-        const errLog = `[NODEMAILER MGMT NOTE] Failed sending to management: ${recipErr?.message || recipErr}`;
-        console.warn(errLog);
-        dispatchLogs.push(errLog);
+      // Send dedicated direct email to each management recipient (Kannan.d26@gmail.com and gowri7282@gmail.com)
+      for (const recipient of adminRecipients) {
+        try {
+          const mgmtInfo = await activeTransporter.sendMail({
+            from: `"KM PALACE Booking" <${senderEmail}>`,
+            to: recipient,
+            subject: `[NEW BOOKING ALERT] ${booking.customer_name} (${booking.booking_id})`,
+            html: managerHtml,
+          });
+          const logMsg = `[NODEMAILER SUCCESS] Sent management alert directly to ${recipient} (Message ID: ${mgmtInfo.messageId})`;
+          console.log(logMsg);
+          dispatchLogs.push(logMsg);
+          isDelivered = true;
+        } catch (recipErr: any) {
+          const errLog = `[NODEMAILER MGMT NOTE] Failed sending to ${recipient}: ${recipErr?.message || recipErr}`;
+          console.warn(errLog);
+          dispatchLogs.push(errLog);
+        }
       }
 
       // Send customer confirmation copy
@@ -830,14 +832,14 @@ app.post('/api/bookings', async (req: Request, res: Response) => {
       from_time: from_time || muhurtham_time || '06:00',
       end_time: end_time || '22:00',
       function_type: function_type || 'Wedding',
-      guest_count: Number(guest_count) || 500,
+      guest_count: Number(guest_count) || 0,
       requirements: Array.isArray(requirements) ? requirements : [],
       blocked_previous_day: blockedPreviousDay,
       blocked_dates: blockedDates,
       booking_status: 'Confirmed',
       created_at: new Date().toISOString(),
       notes: (notes || '').trim(),
-      estimated_amount: Number(estimated_amount) || 364500,
+      estimated_amount: Number(estimated_amount) || 0,
       payment_method: payment_method || 'UPI',
       payment_gateway: payment_gateway || 'Manual',
       currency: currency || 'INR',

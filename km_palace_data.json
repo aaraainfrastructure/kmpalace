@@ -1,41 +1,42 @@
 {
-  "nextSequence": 5,
+  "nextSequence": 6,
   "adminBlocks": [],
   "bookings": [
     {
-      "id": "bk_1785323259932_4qs3f",
-      "booking_id": "KM-20260729-004",
-      "customer_name": "Ramesh Babu",
-      "phone": "9840123456",
+      "id": "bk_1785323938878_c4sqa",
+      "booking_id": "KM-20260729-005",
+      "customer_name": "Kannan Realtime Verification",
+      "phone": "9840999999",
       "email": "Kannan.d26@gmail.com",
-      "customer_address": "45 Anna Salai, Chennai",
-      "bride_name": "Priya",
-      "groom_name": "Ramesh",
-      "marriage_date": "2026-12-15",
-      "muhurtham_time": "07:30 AM",
-      "from_time": "07:30 AM",
+      "customer_address": "No 10 KM Palace Main Road, Chennai",
+      "bride_name": "Lakshmi",
+      "groom_name": "Kannan",
+      "marriage_date": "2026-10-25",
+      "muhurtham_time": "06:00 AM",
+      "from_time": "06:00 AM",
       "end_time": "22:00",
       "function_type": "Marriage",
-      "guest_count": 800,
+      "guest_count": 750,
       "requirements": [
-        "Decoration",
-        "Catering",
-        "Live Orchestra"
+        "Mandapam & Entrance Decoration",
+        "11 A/C Guest Rooms",
+        "Ample Parking & Valet"
       ],
-      "blocked_previous_day": false,
+      "blocked_previous_day": true,
       "blocked_dates": [
-        "2026-12-15"
+        "2026-10-24",
+        "2026-10-25"
       ],
       "booking_status": "Confirmed",
-      "created_at": "2026-07-29T11:07:39.932Z",
-      "notes": "Special floral stage decoration requested",
-      "estimated_amount": 364500,
+      "created_at": "2026-07-29T11:18:58.878Z",
+      "notes": "Live test with actual user input parameters",
+      "estimated_amount": 385000,
       "payment_method": "UPI",
       "payment_gateway": "Manual",
       "currency": "INR",
       "customer_region": "India",
       "payment_status": "Pending",
-      "advance_paid_amount": 0
+      "advance_paid_amount": 50000
     },
     {
       "id": "bk_1785222542117_h0qve",
