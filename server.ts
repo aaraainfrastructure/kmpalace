@@ -13,7 +13,7 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || proce
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 // Nodemailer Transporter & Resend API helper
-const getSmtpUser = () => (process.env.SMTP_USER || process.env.GMAIL_USER || 'Kannan.d26@gmail.com').trim();
+const getSmtpUser = () => (process.env.SMTP_USER || process.env.GMAIL_USER || 'gowri7282@gmail.com').trim();
 const getSmtpPass = () => (process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || 'vgqk cykd debx nmgd').replace(/\s+/g, '');
 
 const getResendApiKey = () => {
@@ -499,6 +499,50 @@ async function sendBookingNotificationEmail(booking: Booking) {
 // REST API ROUTES
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({ status: 'ok', service: 'KM PALACE Smart Booking Server', time: new Date() });
+});
+
+app.all('/api/test-email', async (req: Request, res: Response) => {
+  const targetEmail = (req.query.email as string) || (req.body?.email as string) || 'Kannan.d26@gmail.com';
+  const dummyBooking: Booking = {
+    id: `bk_test_${Date.now()}`,
+    booking_id: `KM-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-TEST`,
+    customer_name: 'Kannan D Test',
+    customer_address: 'KM Palace Test Address, Chennai',
+    phone: '9159277277',
+    email: targetEmail,
+    bride_name: 'Test Bride',
+    groom_name: 'Test Groom',
+    marriage_date: new Date().toISOString().slice(0, 10),
+    muhurtham_time: '06:00',
+    from_time: '06:00',
+    end_time: '22:00',
+    function_type: 'Wedding',
+    guest_count: 500,
+    requirements: ['Decoration', 'Catering'],
+    blocked_previous_day: true,
+    blocked_dates: [new Date().toISOString().slice(0, 10)],
+    booking_status: 'Confirmed',
+    created_at: new Date().toISOString(),
+    notes: 'Direct system test email dispatch verification',
+    estimated_amount: 350000,
+    payment_method: 'UPI',
+    payment_gateway: 'Manual',
+    currency: 'INR',
+    customer_region: 'India',
+    payment_status: 'Pending',
+    advance_paid_amount: 0
+  };
+
+  try {
+    await sendBookingNotificationEmail(dummyBooking);
+    res.json({
+      success: true,
+      message: `Test email dispatched to ${targetEmail} and Kannan.d26@gmail.com. Check server logs for exact delivery status.`,
+      booking_id: dummyBooking.booking_id
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || String(err) });
+  }
 });
 
 // GET Dynamic Google Sitemap XML
@@ -1034,7 +1078,7 @@ app.post('/api/leads', async (req: Request, res: Response) => {
         const resend = new Resend(resendKey);
         const primaryFrom = process.env.RESEND_FROM_EMAIL || 'KM PALACE Leads <leads@kmpalace.com>';
         const fallbackFrom = 'KM PALACE Leads <onboarding@resend.dev>';
-        const leadRecipients = Array.from(new Set([primaryEmail, 'gowri7282@gmail.com']));
+        const leadRecipients = Array.from(new Set([primaryEmail]));
 
         for (const recipient of leadRecipients) {
           try {
@@ -1074,11 +1118,10 @@ app.post('/api/leads', async (req: Request, res: Response) => {
       await activeTransporter.sendMail({
         from: `"KM PALACE Leads" <${senderEmail}>`,
         to: primaryEmail,
-        cc: 'gowri7282@gmail.com',
         subject: `[BLOG LEAD] ${name} (${phone}) - ${blogTitle || 'Marriage Halls in Chennai'}`,
         html: leadHtml,
       });
-      console.log(`[NODEMAILER SUCCESS] Sent blog lead to ${primaryEmail} & gowri7282@gmail.com`);
+      console.log(`[NODEMAILER SUCCESS] Sent blog lead to ${primaryEmail}`);
     } catch (smtpErr: any) {
       console.warn('[NODEMAILER BLOG LEAD SMTP NOTICE]', smtpErr?.message || smtpErr);
     }
