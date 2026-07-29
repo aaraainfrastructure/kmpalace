@@ -397,102 +397,119 @@ async function sendBookingNotificationEmail(booking: Booking) {
   // Target recipients
   const adminRecipients = ['Kannan.d26@gmail.com'];
   let isDelivered = false;
+  const dispatchLogs: string[] = [];
 
-  // Dispatch Strategy 1: Resend HTTP API (Primary over Port 443)
-  const resendKey = getResendApiKey();
-  if (resendKey) {
+  // Dispatch Strategy 1: Nodemailer Direct SMTP (Gmail SMTP Service) - Primary Reliable Transport
+  const smtpPorts = [true, false]; // true = 465 SSL, false = 587 STARTTLS
+  for (const useSsl of smtpPorts) {
     try {
-      const resend = new Resend(resendKey);
-      const primaryFrom = process.env.RESEND_FROM_EMAIL || 'KM PALACE <booking@kmpalace.com>';
-      const fallbackFrom = 'KM PALACE <onboarding@resend.dev>';
+      const activeTransporter = createTransporter(useSsl);
+      const senderEmail = getSmtpUser();
 
-      const sendResendEmail = async (to: string, subject: string, html: string) => {
-        try {
-          const res = await resend.emails.send({ from: primaryFrom, to: [to], subject, html });
-          if (res.error) throw new Error(res.error.message);
-          return true;
-        } catch (err: any) {
-          console.warn(`[RESEND PRIMARY NOTE for ${to}]: ${err?.message || err}. Retrying via onboarding address...`);
-          try {
-            const fbRes = await resend.emails.send({ from: fallbackFrom, to: [to], subject, html });
-            if (fbRes.error) throw new Error(fbRes.error.message);
-            return true;
-          } catch (fbErr: any) {
-            console.warn(`[RESEND FALLBACK NOTE for ${to}]: ${fbErr?.message || fbErr}`);
-            return false;
-          }
-        }
-      };
-
+      // Send to management recipient Kannan.d26@gmail.com
       for (const recipient of adminRecipients) {
-        const sent = await sendResendEmail(
-          recipient,
-          `[NEW BOOKING] Notification: ${booking.booking_id} (${booking.customer_name})`,
-          managerHtml
-        );
-        if (sent) {
-          console.log(`[RESEND SUCCESS] Sent booking notification to ${recipient}`);
+        try {
+          const mgmtInfo = await activeTransporter.sendMail({
+            from: `"KM PALACE Booking" <${senderEmail}>`,
+            to: recipient,
+            subject: `New Booking Alert - ${booking.customer_name} (${booking.booking_id})`,
+            html: managerHtml,
+          });
+          const logMsg = `[NODEMAILER SUCCESS] Sent to management ${recipient} (Message ID: ${mgmtInfo.messageId})`;
+          console.log(logMsg);
+          dispatchLogs.push(logMsg);
           isDelivered = true;
+        } catch (recipErr: any) {
+          const errLog = `[NODEMAILER RECIP NOTE] Failed sending to ${recipient}: ${recipErr?.message || recipErr}`;
+          console.warn(errLog);
+          dispatchLogs.push(errLog);
         }
       }
 
-      if (customerEmail && !adminRecipients.includes(customerEmail)) {
-        const sentCust = await sendResendEmail(
-          customerEmail,
-          `KM PALACE Booking Confirmation [${booking.booking_id}]`,
-          customerHtml
-        );
-        if (sentCust) {
-          console.log(`[RESEND SUCCESS] Sent customer confirmation to ${customerEmail}`);
+      // Send customer confirmation copy
+      if (customerEmail) {
+        try {
+          const custInfo = await activeTransporter.sendMail({
+            from: `"KM PALACE" <${senderEmail}>`,
+            to: customerEmail,
+            subject: `KM PALACE Booking Confirmation [${booking.booking_id}]`,
+            html: customerHtml,
+          });
+          const custLog = `[NODEMAILER SUCCESS] Customer confirmation sent to ${customerEmail} (Message ID: ${custInfo.messageId})`;
+          console.log(custLog);
+          dispatchLogs.push(custLog);
+        } catch (custErr: any) {
+          const custErrLog = `[NODEMAILER CUSTOMER NOTE] Could not send to customer (${customerEmail}): ${custErr?.message || custErr}`;
+          console.warn(custErrLog);
+          dispatchLogs.push(custErrLog);
         }
       }
-    } catch (resendErr: any) {
-      console.warn('[RESEND PRIMARY NOTICE]', resendErr?.message || resendErr);
+
+      if (isDelivered) break;
+    } catch (smtpErr: any) {
+      const smtpErrLog = `[NODEMAILER SMTP NOTICE] SMTP Port ${useSsl ? 465 : 587} unavailable: ${smtpErr?.message || smtpErr}`;
+      console.warn(smtpErrLog);
+      dispatchLogs.push(smtpErrLog);
     }
   }
 
-  // Dispatch Strategy 3: Nodemailer Direct SMTP (Port 465 SSL, then Port 587 STARTTLS)
+  // Dispatch Strategy 2: Resend HTTP API (Secondary / Fallback)
   if (!isDelivered) {
-    const smtpPorts = [true, false]; // true = 465 SSL, false = 587 STARTTLS
-    for (const useSsl of smtpPorts) {
+    const resendKey = getResendApiKey();
+    if (resendKey) {
       try {
-        const activeTransporter = createTransporter(useSsl);
-        const senderEmail = getSmtpUser();
+        const resend = new Resend(resendKey);
+        const primaryFrom = process.env.RESEND_FROM_EMAIL || 'KM PALACE <booking@kmpalace.com>';
+        const fallbackFrom = 'KM PALACE <onboarding@resend.dev>';
 
-        // Send to each admin explicitly so both inboxes receive a direct email
+        const sendResendEmail = async (to: string, subject: string, html: string) => {
+          try {
+            const res = await resend.emails.send({ from: primaryFrom, to: [to], subject, html });
+            if (res.error) throw new Error(res.error.message);
+            return true;
+          } catch (err: any) {
+            console.warn(`[RESEND PRIMARY NOTE for ${to}]: ${err?.message || err}. Retrying via onboarding address...`);
+            try {
+              const fbRes = await resend.emails.send({ from: fallbackFrom, to: [to], subject, html });
+              if (fbRes.error) throw new Error(fbRes.error.message);
+              return true;
+            } catch (fbErr: any) {
+              console.warn(`[RESEND FALLBACK NOTE for ${to}]: ${fbErr?.message || fbErr}`);
+              return false;
+            }
+          }
+        };
+
         for (const recipient of adminRecipients) {
-          try {
-            const mgmtInfo = await activeTransporter.sendMail({
-              from: `"KM PALACE Booking" <${senderEmail}>`,
-              to: recipient,
-              subject: `New Booking Alert - ${booking.customer_name} (${booking.booking_id})`,
-              html: managerHtml,
-            });
-            console.log(`[NODEMAILER SUCCESS] Sent to ${recipient} (Port ${useSsl ? 465 : 587}):`, mgmtInfo.messageId);
+          const sent = await sendResendEmail(
+            recipient,
+            `[NEW BOOKING] Notification: ${booking.booking_id} (${booking.customer_name})`,
+            managerHtml
+          );
+          if (sent) {
+            const rLog = `[RESEND SUCCESS] Sent booking notification to ${recipient}`;
+            console.log(rLog);
+            dispatchLogs.push(rLog);
             isDelivered = true;
-          } catch (recipErr: any) {
-            console.warn(`[NODEMAILER RECIP NOTE] Failed sending to ${recipient}:`, recipErr?.message || recipErr);
           }
         }
 
-        // Send customer confirmation if available
-        if (customerEmail && !adminRecipients.includes(customerEmail)) {
-          try {
-            const custInfo = await activeTransporter.sendMail({
-              from: `"KM PALACE" <${senderEmail}>`,
-              to: customerEmail,
-              subject: `KM PALACE Booking Confirmation [${booking.booking_id}]`,
-              html: customerHtml,
-            });
-            console.log(`[NODEMAILER SUCCESS] Customer confirmation sent to ${customerEmail}:`, custInfo.messageId);
-          } catch (custErr: any) {
-            console.warn(`[NODEMAILER CUSTOMER NOTE] Could not send customer email (${customerEmail}):`, custErr?.message || custErr);
+        if (customerEmail) {
+          const sentCust = await sendResendEmail(
+            customerEmail,
+            `KM PALACE Booking Confirmation [${booking.booking_id}]`,
+            customerHtml
+          );
+          if (sentCust) {
+            const rCustLog = `[RESEND SUCCESS] Sent customer confirmation to ${customerEmail}`;
+            console.log(rCustLog);
+            dispatchLogs.push(rCustLog);
           }
         }
-
-        if (isDelivered) break;
-      } catch (smtpErr: any) {
-        console.warn(`[NODEMAILER SMTP NOTICE] SMTP Port ${useSsl ? 465 : 587} unavailable:`, smtpErr?.message || smtpErr);
+      } catch (resendErr: any) {
+        const resendErrLog = `[RESEND NOTICE] ${resendErr?.message || resendErr}`;
+        console.warn(resendErrLog);
+        dispatchLogs.push(resendErrLog);
       }
     }
   }
@@ -502,6 +519,8 @@ async function sendBookingNotificationEmail(booking: Booking) {
   console.log(`1. Management Email (Kannan.d26@gmail.com): Status = ${isDelivered ? 'DELIVERED' : 'QUEUED/FALLBACK'}`);
   console.log(`2. Customer Email (${customerEmail || 'N/A'}): Confirmation for ${booking.booking_id}`);
   console.log('----------------------------------------------------');
+
+  return { isDelivered, logs: dispatchLogs };
 }
 
 
@@ -543,11 +562,13 @@ app.all('/api/test-email', async (req: Request, res: Response) => {
   };
 
   try {
-    await sendBookingNotificationEmail(dummyBooking);
+    const dispatchResult = await sendBookingNotificationEmail(dummyBooking);
     res.json({
       success: true,
-      message: `Test email dispatched to ${targetEmail} and Kannan.d26@gmail.com. Check server logs for exact delivery status.`,
-      booking_id: dummyBooking.booking_id
+      message: `Test email dispatched to ${targetEmail} and Kannan.d26@gmail.com.`,
+      booking_id: dummyBooking.booking_id,
+      delivery_status: dispatchResult.isDelivered ? 'DELIVERED' : 'FAILED',
+      logs: dispatchResult.logs
     });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message || String(err) });
