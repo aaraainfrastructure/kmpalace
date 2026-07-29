@@ -73,9 +73,36 @@ export const BookingForm: React.FC<BookingFormProps> = ({
   const [brideName, setBrideName] = useState('');
   const [groomName, setGroomName] = useState('');
   
-  // Default to tomorrow or initialDate
+  // Default to today or initialDate or next available date
   const todayStr = new Date().toISOString().split('T')[0];
-  const [marriageDate, setMarriageDate] = useState(initialDate || '2026-07-25');
+
+  const getInitialAvailableDate = (start: string, bookingsList: Booking[], adminBlocksList: AdminManualBlock[]) => {
+    if (start && start >= todayStr) {
+      const conflict = checkBookingConflict(start, '06:00 AM', bookingsList, adminBlocksList);
+      if (!conflict.hasConflict) return start;
+    }
+    let curr = new Date(todayStr);
+    for (let i = 0; i < 90; i++) {
+      const y = curr.getFullYear();
+      const m = String(curr.getMonth() + 1).padStart(2, '0');
+      const d = String(curr.getDate()).padStart(2, '0');
+      const ds = `${y}-${m}-${d}`;
+      const conflict = checkBookingConflict(ds, '06:00 AM', bookingsList, adminBlocksList);
+      if (!conflict.hasConflict) return ds;
+      curr.setDate(curr.getDate() + 1);
+    }
+    return todayStr;
+  };
+
+  const [marriageDate, setMarriageDate] = useState<string>(() =>
+    getInitialAvailableDate(initialDate || '', existingBookings, adminBlocks)
+  );
+
+  useEffect(() => {
+    if (initialDate && initialDate >= todayStr) {
+      setMarriageDate(initialDate);
+    }
+  }, [initialDate, todayStr]);
   const [muhurthamTime, setMuhurthamTime] = useState('06:00 AM');
   const [fromTime, setFromTime] = useState('06:00 AM');
   const [endTime, setEndTime] = useState('10:00 PM');
@@ -184,7 +211,8 @@ export const BookingForm: React.FC<BookingFormProps> = ({
         return new Date(Number(parts[0]), Number(parts[1]) - 1, 1);
       }
     }
-    return new Date(2026, 6, 1);
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
   });
 
   useEffect(() => {
@@ -192,6 +220,15 @@ export const BookingForm: React.FC<BookingFormProps> = ({
       setMarriageDate(initialDate);
     }
   }, [initialDate]);
+
+  useEffect(() => {
+    if (marriageDate) {
+      const parts = marriageDate.split('-');
+      if (parts.length === 3) {
+        setPickerMonth(new Date(Number(parts[0]), Number(parts[1]) - 1, 1));
+      }
+    }
+  }, [marriageDate]);
 
   const handleRegionSelect = (region: 'India' | 'International') => {
     setCustomerRegion(region);
@@ -622,7 +659,9 @@ export const BookingForm: React.FC<BookingFormProps> = ({
                                       }}
                                       className={`h-10 sm:h-11 rounded-[12px] text-xs font-bold transition-all flex flex-col items-center justify-center relative font-num cursor-pointer ${
                                         isSelected
-                                          ? 'bg-[#E11D48] text-white ring-2 ring-[#F43F5E] font-extrabold shadow-md scale-102 z-10'
+                                          ? isBooked
+                                            ? 'bg-[#E11D48] text-white ring-2 ring-[#BE123C] font-extrabold shadow-md z-10'
+                                            : 'bg-[#059669] text-white ring-2 ring-[#10B981] font-extrabold shadow-md scale-102 z-10'
                                           : isBooked
                                           ? 'bg-[#FFF1F2] text-[#9F1239] border border-[#FECDD3] hover:bg-[#FFE4E6]'
                                           : 'bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0] hover:bg-[#D1FAE5]'
@@ -1353,7 +1392,14 @@ export const BookingForm: React.FC<BookingFormProps> = ({
         </div>
 
         {/* SUBMIT BUTTON */}
-        <div className="pt-4 border-t border-[rgba(199,168,109,0.25)]">
+        <div className="pt-4 border-t border-[rgba(199,168,109,0.25)] space-y-3">
+          {errorMessage && (
+            <div className="p-3.5 rounded-[14px] bg-rose-50 border border-rose-300 text-rose-800 text-xs flex items-center space-x-2">
+              <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={submitting || conflictCheck.hasConflict}

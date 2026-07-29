@@ -425,7 +425,7 @@ async function sendBookingNotificationEmail(booking: Booking) {
         }
       }
 
-      if (customerEmail && customerEmail !== primaryEmail && !adminRecipients.includes(customerEmail)) {
+      if (customerEmail && !adminRecipients.includes(customerEmail)) {
         const sentCust = await sendResendEmail(
           customerEmail,
           `KM PALACE Booking Confirmation [${booking.booking_id}]`,

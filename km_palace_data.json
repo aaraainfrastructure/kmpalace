@@ -1,5 +1,119 @@
 {
-  "nextSequence": 1,
+  "nextSequence": 3,
   "adminBlocks": [],
-  "bookings": []
+  "bookings": [
+    {
+      "id": "bk_1785243143407_hgyvq",
+      "booking_id": "KM-20260728-002",
+      "customer_name": "Verification Test",
+      "phone": "9876543210",
+      "email": "test@kmpalace.com",
+      "bride_name": "",
+      "groom_name": "",
+      "marriage_date": "2026-12-01",
+      "muhurtham_time": "06:00 AM",
+      "from_time": "06:00 AM",
+      "end_time": "10:00 PM",
+      "function_type": "Wedding",
+      "guest_count": 500,
+      "requirements": [],
+      "blocked_previous_day": true,
+      "blocked_dates": [
+        "2026-11-30",
+        "2026-12-01"
+      ],
+      "booking_status": "Confirmed",
+      "created_at": "2026-07-28T12:52:23.407Z",
+      "notes": "",
+      "estimated_amount": 364500,
+      "payment_method": "UPI",
+      "payment_gateway": "Manual",
+      "currency": "INR",
+      "customer_region": "India",
+      "payment_status": "Pending",
+      "advance_paid_amount": 0
+    },
+    {
+      "id": "bk_1785222542117_h0qve",
+      "booking_id": "KM-20260728-002",
+      "customer_name": "test 12.38",
+      "phone": "0000000000",
+      "email": "gowri7282@gmail.com",
+      "bride_name": "test",
+      "groom_name": "test",
+      "marriage_date": "2026-07-30",
+      "muhurtham_time": "06:00 AM",
+      "from_time": "06:00 AM",
+      "end_time": "10:00 PM",
+      "function_type": "Wedding",
+      "guest_count": 600,
+      "requirements": [
+        "Decoration",
+        "Catering",
+        "Rooms",
+        "Parking",
+        "Generator"
+      ],
+      "blocked_previous_day": true,
+      "blocked_dates": [
+        "2026-07-29",
+        "2026-07-30"
+      ],
+      "booking_status": "Confirmed",
+      "created_at": "2026-07-28T07:09:02.117+00:00",
+      "notes": "",
+      "estimated_amount": 536000,
+      "payment_method": "UPI",
+      "payment_gateway": "Manual",
+      "currency": "INR",
+      "customer_region": "India",
+      "payment_status": "Pending",
+      "advance_paid_amount": 0,
+      "pg_rooms_selected": {
+        "triple_rooms": 2,
+        "eight_person_rooms": 1
+      }
+    },
+    {
+      "id": "bk_1785219776994_pe3dl",
+      "booking_id": "KM-20260728-001",
+      "customer_name": "gowri test 11.52",
+      "phone": "9841867282",
+      "email": "gowri7282@gmail.com",
+      "bride_name": "teeest",
+      "groom_name": "test",
+      "marriage_date": "2026-08-12",
+      "muhurtham_time": "06:00 AM",
+      "from_time": "06:00 AM",
+      "end_time": "10:00 PM",
+      "function_type": "Wedding",
+      "guest_count": 600,
+      "requirements": [
+        "Decoration",
+        "Catering",
+        "Rooms",
+        "Parking",
+        "Generator"
+      ],
+      "blocked_previous_day": true,
+      "blocked_dates": [
+        "2026-08-11",
+        "2026-08-12"
+      ],
+      "booking_status": "Confirmed",
+      "created_at": "2026-07-28T06:22:56.994+00:00",
+      "notes": "",
+      "estimated_amount": 536000,
+      "payment_method": "UPI",
+      "payment_gateway": "Manual",
+      "currency": "INR",
+      "customer_region": "India",
+      "payment_status": "Pending",
+      "advance_paid_amount": 0,
+      "pg_rooms_selected": {
+        "triple_rooms": 2,
+        "eight_person_rooms": 1
+      }
+    }
+  ]
 }
