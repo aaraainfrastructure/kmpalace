@@ -394,8 +394,8 @@ async function sendBookingNotificationEmail(booking: Booking) {
     </div>
   `;
 
-  // Target recipients
-  const adminRecipients = ['Kannan.d26@gmail.com'];
+  // Target recipients for management alerts
+  const adminRecipients = ['Kannan.d26@gmail.com', 'gowri7282@gmail.com'];
   let isDelivered = false;
   const dispatchLogs: string[] = [];
 
@@ -406,24 +406,22 @@ async function sendBookingNotificationEmail(booking: Booking) {
       const activeTransporter = createTransporter(useSsl);
       const senderEmail = getSmtpUser();
 
-      // Send to management recipient Kannan.d26@gmail.com
-      for (const recipient of adminRecipients) {
-        try {
-          const mgmtInfo = await activeTransporter.sendMail({
-            from: `"KM PALACE Booking" <${senderEmail}>`,
-            to: recipient,
-            subject: `New Booking Alert - ${booking.customer_name} (${booking.booking_id})`,
-            html: managerHtml,
-          });
-          const logMsg = `[NODEMAILER SUCCESS] Sent to management ${recipient} (Message ID: ${mgmtInfo.messageId})`;
-          console.log(logMsg);
-          dispatchLogs.push(logMsg);
-          isDelivered = true;
-        } catch (recipErr: any) {
-          const errLog = `[NODEMAILER RECIP NOTE] Failed sending to ${recipient}: ${recipErr?.message || recipErr}`;
-          console.warn(errLog);
-          dispatchLogs.push(errLog);
-        }
+      // Send to management recipients (Kannan.d26@gmail.com and gowri7282@gmail.com)
+      try {
+        const mgmtInfo = await activeTransporter.sendMail({
+          from: `"KM PALACE Booking" <${senderEmail}>`,
+          to: adminRecipients,
+          subject: `New Booking Alert - ${booking.customer_name} (${booking.booking_id})`,
+          html: managerHtml,
+        });
+        const logMsg = `[NODEMAILER SUCCESS] Sent management alert to ${adminRecipients.join(', ')} (Message ID: ${mgmtInfo.messageId})`;
+        console.log(logMsg);
+        dispatchLogs.push(logMsg);
+        isDelivered = true;
+      } catch (recipErr: any) {
+        const errLog = `[NODEMAILER MGMT NOTE] Failed sending to management: ${recipErr?.message || recipErr}`;
+        console.warn(errLog);
+        dispatchLogs.push(errLog);
       }
 
       // Send customer confirmation copy
@@ -565,7 +563,7 @@ app.all('/api/test-email', async (req: Request, res: Response) => {
     const dispatchResult = await sendBookingNotificationEmail(dummyBooking);
     res.json({
       success: true,
-      message: `Test email dispatched to ${targetEmail} and Kannan.d26@gmail.com.`,
+      message: `Test email dispatched to customer (${targetEmail}) and both management IDs (Kannan.d26@gmail.com & gowri7282@gmail.com).`,
       booking_id: dummyBooking.booking_id,
       delivery_status: dispatchResult.isDelivered ? 'DELIVERED' : 'FAILED',
       logs: dispatchResult.logs
@@ -1063,7 +1061,7 @@ app.post('/api/leads', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'You must agree to the Privacy Policy to submit.' });
     }
 
-    const primaryEmail = 'Kannan.d26@gmail.com';
+    const leadRecipients = ['Kannan.d26@gmail.com', 'gowri7282@gmail.com'];
 
     const leadHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 650px; margin: 0 auto; border: 2px solid #C7A86D; border-radius: 8px; overflow: hidden; background-color: #ffffff;">
@@ -1114,8 +1112,6 @@ app.post('/api/leads', async (req: Request, res: Response) => {
         const resend = new Resend(resendKey);
         const primaryFrom = process.env.RESEND_FROM_EMAIL || 'KM PALACE Leads <leads@kmpalace.com>';
         const fallbackFrom = 'KM PALACE Leads <onboarding@resend.dev>';
-        const leadRecipients = Array.from(new Set([primaryEmail]));
-
         for (const recipient of leadRecipients) {
           try {
             const res = await resend.emails.send({
@@ -1153,11 +1149,11 @@ app.post('/api/leads', async (req: Request, res: Response) => {
       const senderEmail = getSmtpUser();
       await activeTransporter.sendMail({
         from: `"KM PALACE Leads" <${senderEmail}>`,
-        to: primaryEmail,
+        to: leadRecipients,
         subject: `[BLOG LEAD] ${name} (${phone}) - ${blogTitle || 'Marriage Halls in Chennai'}`,
         html: leadHtml,
       });
-      console.log(`[NODEMAILER SUCCESS] Sent blog lead to ${primaryEmail}`);
+      console.log(`[NODEMAILER SUCCESS] Sent blog lead to ${leadRecipients.join(', ')}`);
     } catch (smtpErr: any) {
       console.warn('[NODEMAILER BLOG LEAD SMTP NOTICE]', smtpErr?.message || smtpErr);
     }
