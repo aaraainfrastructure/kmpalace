@@ -114,8 +114,10 @@ export function format12HourTime(timeStr: string): string {
  * Helper to get YYYY-MM-DD minus 1 day
  */
 export function getPreviousDay(dateStr: string): string {
-  if (!dateStr) return '';
-  const [year, month, day] = dateStr.split('-').map(Number);
+  if (!dateStr || typeof dateStr !== 'string') return '';
+  const parts = dateStr.split('-').map(Number);
+  if (parts.length < 3 || isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) return dateStr;
+  const [year, month, day] = parts;
   const date = new Date(year, month - 1, day);
   date.setDate(date.getDate() - 1);
   return formatDateToYYYYMMDD(date);
@@ -125,14 +127,17 @@ export function getPreviousDay(dateStr: string): string {
  * Helper to get YYYY-MM-DD plus 1 day
  */
 export function getNextDay(dateStr: string): string {
-  if (!dateStr) return '';
-  const [year, month, day] = dateStr.split('-').map(Number);
+  if (!dateStr || typeof dateStr !== 'string') return '';
+  const parts = dateStr.split('-').map(Number);
+  if (parts.length < 3 || isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) return dateStr;
+  const [year, month, day] = parts;
   const date = new Date(year, month - 1, day);
   date.setDate(date.getDate() + 1);
   return formatDateToYYYYMMDD(date);
 }
 
 export function formatDateToYYYYMMDD(date: Date): string {
+  if (!date || isNaN(date.getTime())) return '';
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
@@ -143,9 +148,10 @@ export function formatDateToYYYYMMDD(date: Date): string {
  * Formats YYYY-MM-DD nicely e.g. "21 July 2026"
  */
 export function formatDisplayDate(dateStr: string): string {
-  if (!dateStr) return '';
-  const [year, month, day] = dateStr.split('-').map(Number);
-  if (isNaN(year) || isNaN(month) || isNaN(day)) return dateStr;
+  if (!dateStr || typeof dateStr !== 'string') return '';
+  const parts = dateStr.split('-').map(Number);
+  if (parts.length < 3 || isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) return dateStr;
+  const [year, month, day] = parts;
   const date = new Date(year, month - 1, day);
   return date.toLocaleDateString('en-IN', {
     day: 'numeric',
@@ -158,9 +164,10 @@ export function formatDisplayDate(dateStr: string): string {
  * Formats date to weekday name
  */
 export function getWeekdayName(dateStr: string): string {
-  if (!dateStr) return '';
-  const [year, month, day] = dateStr.split('-').map(Number);
-  if (isNaN(year) || isNaN(month) || isNaN(day)) return '';
+  if (!dateStr || typeof dateStr !== 'string') return '';
+  const parts = dateStr.split('-').map(Number);
+  if (parts.length < 3 || isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) return '';
+  const [year, month, day] = parts;
   const date = new Date(year, month - 1, day);
   return date.toLocaleDateString('en-IN', { weekday: 'long' });
 }
@@ -169,11 +176,14 @@ export function getWeekdayName(dateStr: string): string {
  * Calculates days offset from reference date 2020-01-01
  */
 function getDayOffset(dateStr: string): number {
-  if (!dateStr) return 0;
-  const [y, m, d] = dateStr.split('-').map(Number);
+  if (!dateStr || typeof dateStr !== 'string') return 0;
+  const parts = dateStr.split('-').map(Number);
+  if (parts.length < 3 || isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) return 0;
+  const [y, m, d] = parts;
   const date = new Date(Date.UTC(y, m - 1, d));
   const base = new Date(Date.UTC(2020, 0, 1));
-  return Math.floor((date.getTime() - base.getTime()) / (1000 * 60 * 60 * 24));
+  const diff = Math.floor((date.getTime() - base.getTime()) / (1000 * 60 * 60 * 24));
+  return isNaN(diff) ? 0 : diff;
 }
 
 export interface AbsoluteInterval {

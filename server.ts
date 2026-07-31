@@ -4,7 +4,7 @@ import fs from 'fs';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import { createClient } from '@supabase/supabase-js';
-import { Booking, AdminManualBlock } from './src/types';
+import { Booking, AdminManualBlock, FunctionType } from './src/types';
 import { calculateBlockedDates, checkBookingConflict, generateBookingId, formatDisplayDate, SlotType } from './src/lib/bookingLogic';
 
 // Supabase Cloud Storage Client
@@ -915,43 +915,18 @@ app.post('/api/bookings/check-availability', async (req: Request, res: Response)
 // POST create new booking
 app.post('/api/bookings', async (req: Request, res: Response) => {
   try {
-    const {
-      customer_name,
-      phone,
-      email,
-      customer_address,
-      bride_name,
-      groom_name,
-      marriage_date,
-      muhurtham_time,
-      from_time,
-      end_time,
-      function_type,
-      guest_count,
-      requirements,
-      notes,
-      estimated_amount,
-      payment_method,
-      payment_gateway,
-      currency,
-      customer_region,
-      payment_status,
-      pg_transaction_id,
-      advance_paid_amount,
-      pg_rooms_selected,
-    } = req.body;
-
-    const brideNameVal = ((req.body.bride_name || req.body.brideName || '') as string).trim();
-    const groomNameVal = ((req.body.groom_name || req.body.groomName || '') as string).trim();
-    const customerNameVal = ((req.body.customer_name || req.body.customerName || '') as string).trim();
-    const customerAddressVal = ((customer_address || req.body.customerAddress || '') as string).trim();
-    const phoneVal = (phone || req.body.mobile || '').toString().trim();
-    const emailVal = (email || '').toString().trim();
-    const marriageDateVal = (marriage_date || req.body.marriageDate || '').toString().trim();
-    const muhurthamTimeVal = (muhurtham_time || req.body.muhurthamTime || '').toString().trim();
-    const slotTypeVal = (req.body.slot_type || req.body.slotType || '24hr') as SlotType;
-    const fromTimeVal = (from_time || req.body.fromTime || '').toString().trim();
-    const endTimeVal = (end_time || req.body.endTime || '').toString().trim();
+    const body = req.body || {};
+    const brideNameVal = String(body.bride_name || body.brideName || '').trim();
+    const groomNameVal = String(body.groom_name || body.groomName || '').trim();
+    const customerNameVal = String(body.customer_name || body.customerName || '').trim();
+    const customerAddressVal = String(body.customer_address || body.customerAddress || '').trim();
+    const phoneVal = String(body.phone || body.mobile || '').trim();
+    const emailVal = String(body.email || '').trim();
+    const marriageDateVal = String(body.marriage_date || body.marriageDate || '').trim();
+    const muhurthamTimeVal = String(body.muhurtham_time || body.muhurthamTime || '').trim();
+    const slotTypeVal = (body.slot_type || body.slotType || '24hr') as SlotType;
+    const fromTimeVal = String(body.from_time || body.fromTime || '').trim();
+    const endTimeVal = String(body.end_time || body.endTime || '').trim();
 
     // Server-side validations
     if (!customerNameVal || !phoneVal || !emailVal || !marriageDateVal) {
@@ -964,8 +939,8 @@ app.post('/api/bookings', async (req: Request, res: Response) => {
     const { hasConflict, conflictReason, conflictingDates } = checkBookingConflict(
       marriageDateVal,
       muhurthamTimeVal || '06:00 AM',
-      data.bookings,
-      data.adminBlocks,
+      data.bookings || [],
+      data.adminBlocks || [],
       undefined,
       slotTypeVal,
       fromTimeVal,
@@ -974,7 +949,7 @@ app.post('/api/bookings', async (req: Request, res: Response) => {
 
     if (hasConflict) {
       return res.status(409).json({
-        error: 'Hall already booked. Please choose another date or slot.',
+        error: conflictReason || 'Hall already booked. Please choose another date or slot.',
         conflictReason,
         conflictingDates,
       });
@@ -990,9 +965,9 @@ app.post('/api/bookings', async (req: Request, res: Response) => {
     );
 
     // Generate unique reference ID like KM-20260729-001
-    let seq = data.nextSequence || (data.bookings.length + 1);
+    let seq = data.nextSequence || ((data.bookings ? data.bookings.length : 0) + 1);
     let candidateBookingId = generateBookingId(seq);
-    while (data.bookings.some((b) => b.booking_id === candidateBookingId)) {
+    while (Array.isArray(data.bookings) && data.bookings.some((b) => b && b.booking_id === candidateBookingId)) {
       seq++;
       candidateBookingId = generateBookingId(seq);
     }
@@ -1015,25 +990,28 @@ app.post('/api/bookings', async (req: Request, res: Response) => {
       muhurtham_time: muhurthamTimeVal || '06:00 AM',
       from_time: fromTimeVal || defaultFrom,
       end_time: endTimeVal || defaultEnd,
-      function_type: function_type || 'Wedding',
-      guest_count: Number(guest_count) || 0,
-      requirements: Array.isArray(requirements) ? requirements : [],
+      function_type: (String(body.function_type || body.functionType || 'Wedding').trim()) as FunctionType,
+      guest_count: Number(body.guest_count || body.guestCount) || 0,
+      requirements: Array.isArray(body.requirements) ? body.requirements : [],
       blocked_previous_day: blockedPreviousDay,
       blocked_dates: blockedDates,
       booking_status: 'Confirmed',
       created_at: new Date().toISOString(),
-      notes: (notes || '').trim(),
-      estimated_amount: Number(estimated_amount) || 0,
-      payment_method: payment_method || 'UPI',
-      payment_gateway: payment_gateway || 'Manual',
-      currency: currency || 'INR',
-      customer_region: customer_region || 'India',
-      payment_status: payment_status || 'Pending',
-      pg_transaction_id: pg_transaction_id || undefined,
-      advance_paid_amount: Number(advance_paid_amount) || 0,
-      pg_rooms_selected: pg_rooms_selected || undefined,
+      notes: String(body.notes || '').trim(),
+      estimated_amount: Number(body.estimated_amount || body.estimatedAmount) || 0,
+      payment_method: String(body.payment_method || 'Direct Venue') as any,
+      payment_gateway: String(body.payment_gateway || 'Manual'),
+      currency: String(body.currency || 'INR') as 'INR' | 'USD',
+      customer_region: String(body.customer_region || 'India') as 'India' | 'International',
+      payment_status: String(body.payment_status || 'Pending') as any,
+      pg_transaction_id: body.pg_transaction_id ? String(body.pg_transaction_id) : undefined,
+      advance_paid_amount: Number(body.advance_paid_amount) || 0,
+      pg_rooms_selected: body.pg_rooms_selected || undefined,
     };
 
+    if (!Array.isArray(data.bookings)) {
+      data.bookings = [];
+    }
     data.bookings.unshift(newBooking);
     data.nextSequence = seq + 1;
     saveServerData(data);
@@ -1055,7 +1033,10 @@ app.post('/api/bookings', async (req: Request, res: Response) => {
     });
   } catch (err: any) {
     console.error('Error creating booking:', err);
-    res.status(500).json({ error: 'Internal server error processing booking.' });
+    res.status(500).json({
+      error: 'Internal server error processing booking.',
+      message: err?.message || String(err),
+    });
   }
 });
 
