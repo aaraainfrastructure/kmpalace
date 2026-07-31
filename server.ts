@@ -223,7 +223,106 @@ async function deleteAdminBlockFromSupabase(id: string) {
 
 import { Resend } from 'resend';
 
-// Nodemailer and Resend dispatch logic
+// EmailJS Service Helper
+const getEmailJsConfig = () => {
+  return {
+    serviceId: (process.env.EMAILJS_SERVICE_ID || process.env.VITE_EMAILJS_SERVICE_ID || 'service_f912b6v').trim(),
+    publicKey: (process.env.EMAILJS_PUBLIC_KEY || process.env.VITE_EMAILJS_PUBLIC_KEY || 'P9wRf2UPIPkc1KeYe').trim(),
+    templateId: (process.env.EMAILJS_TEMPLATE_ID || process.env.VITE_EMAILJS_TEMPLATE_ID || 'template_kmpalace').trim(),
+    accessToken: (process.env.EMAILJS_PRIVATE_KEY || process.env.EMAILJS_ACCESS_TOKEN || '').trim(),
+  };
+};
+
+async function sendEmailJsNotification(
+  toEmail: string,
+  subject: string,
+  htmlContent: string,
+  bookingDetails?: Booking
+): Promise<{ success: boolean; log: string }> {
+  const config = getEmailJsConfig();
+  if (!config.serviceId || !config.publicKey) {
+    return { success: false, log: '[EMAILJS NOTE] EmailJS serviceId or publicKey missing' };
+  }
+
+  const templateIdsToTry = Array.from(new Set([
+    config.templateId,
+    'template_default',
+    'template_booking',
+    'template_kmpalace',
+    'template_01',
+    'template_1',
+  ]));
+
+  const templateParams: Record<string, any> = {
+    to_email: toEmail || 'kannan.d26@gmail.com',
+    to_name: 'Kannan D',
+    from_name: 'KM PALACE Royal Convention Hall',
+    subject: subject,
+    message: htmlContent,
+    reply_to: bookingDetails?.email || 'kannan.d26@gmail.com',
+  };
+
+  if (bookingDetails) {
+    templateParams.booking_id = bookingDetails.booking_id;
+    templateParams.customer_name = bookingDetails.customer_name;
+    templateParams.customer_phone = bookingDetails.phone;
+    templateParams.customer_email = bookingDetails.email;
+    templateParams.marriage_date = bookingDetails.marriage_date;
+    templateParams.formatted_date = formatDisplayDate(bookingDetails.marriage_date);
+    templateParams.bride_name = bookingDetails.bride_name || 'N/A';
+    templateParams.groom_name = bookingDetails.groom_name || 'N/A';
+    templateParams.muhurtham_time = bookingDetails.muhurtham_time;
+    templateParams.function_type = bookingDetails.function_type;
+    templateParams.guest_count = bookingDetails.guest_count;
+    templateParams.estimated_amount = bookingDetails.estimated_amount;
+    templateParams.advance_paid_amount = bookingDetails.advance_paid_amount;
+    templateParams.payment_status = bookingDetails.payment_status;
+    templateParams.notes = bookingDetails.notes || 'N/A';
+  }
+
+  for (const tid of templateIdsToTry) {
+    try {
+      const payload: Record<string, any> = {
+        service_id: config.serviceId,
+        template_id: tid,
+        user_id: config.publicKey,
+        public_key: config.publicKey,
+        template_params: templateParams,
+      };
+
+      if (config.accessToken) {
+        payload.accessToken = config.accessToken;
+      }
+
+      const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Origin': 'https://kmpalace.com',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const responseText = await response.text();
+      if (response.ok || responseText === 'OK' || response.status === 200) {
+        const logMsg = `[EMAILJS SUCCESS] Sent notification to ${toEmail} using Service ${config.serviceId} & Template ${tid}`;
+        console.log(logMsg);
+        return { success: true, log: logMsg };
+      } else {
+        console.warn(`[EMAILJS TEMPLATE TRY] Template ${tid} response (${response.status}): ${responseText}`);
+      }
+    } catch (err: any) {
+      console.warn(`[EMAILJS EXCEPTION] Error with template ${tid}:`, err?.message || err);
+    }
+  }
+
+  return {
+    success: false,
+    log: `[EMAILJS NOTICE] EmailJS API dispatched for Service ${config.serviceId} with Public Key ${config.publicKey}. Ensure active template ID in dashboard.`,
+  };
+}
+
+// Email dispatch logic
 async function sendBookingNotificationEmail(booking: Booking) {
   const primaryEmail = 'Kannan.d26@gmail.com';
   const customerEmail = booking.email?.trim();
@@ -398,7 +497,21 @@ async function sendBookingNotificationEmail(booking: Booking) {
   let isDelivered = false;
   const dispatchLogs: string[] = [];
 
-  // Dispatch Strategy 1: Nodemailer Direct SMTP (Gmail SMTP Service) - Primary Reliable Transport
+  // Dispatch Strategy 1: EmailJS Direct Integration (Service ID: service_f912b6v, Public Key: P9wRf2UPIPkc1KeYe)
+  for (const recipient of adminRecipients) {
+    const ejsResult = await sendEmailJsNotification(
+      recipient,
+      `[NEW BOOKING ALERT] ${booking.customer_name} (${booking.booking_id})`,
+      managerHtml,
+      booking
+    );
+    dispatchLogs.push(ejsResult.log);
+    if (ejsResult.success) {
+      isDelivered = true;
+    }
+  }
+
+  // Dispatch Strategy 2: Nodemailer Direct SMTP (Gmail SMTP Service) - Primary Backup Transport
   const smtpPorts = [true, false]; // true = 465 SSL, false = 587 STARTTLS
   for (const useSsl of smtpPorts) {
     try {
@@ -1119,6 +1232,15 @@ app.post('/api/leads', async (req: Request, res: Response) => {
         </div>
       </div>
     `;
+
+    // Dispatch lead notification via EmailJS
+    for (const recipient of leadRecipients) {
+      await sendEmailJsNotification(
+        recipient,
+        `[BLOG LEAD] ${name} (${phone}) - ${blogTitle || 'Marriage Halls in Chennai'}`,
+        leadHtml
+      );
+    }
 
     // Resend HTTP API for blog leads
     const resendKey = getResendApiKey();
