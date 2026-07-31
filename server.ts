@@ -491,70 +491,77 @@ async function sendBookingNotificationEmail(booking: Booking) {
     </div>
   `;
 
-  // Target recipients for management alerts (Owner only: Kannan.d26@gmail.com)
-  const adminRecipients = ['Kannan.d26@gmail.com'];
+  // Email Dispatch Settings
+  const adminEmail = 'Kannan.d26@gmail.com';
+  const targetCustomerEmail = (booking.email || 'Kannan.d26@gmail.com').trim();
   let isDelivered = false;
   const dispatchLogs: string[] = [];
 
-  // Dispatch Strategy 1: EmailJS Direct Integration (Service ID: service_f912b6v, Public Key: P9wRf2UPIPkc1KeYe)
-  for (const recipient of adminRecipients) {
-    const ejsResult = await sendEmailJsNotification(
-      recipient,
-      `[NEW BOOKING ALERT] ${booking.customer_name} (${booking.booking_id})`,
-      managerHtml,
+  // Dispatch Strategy 1: EmailJS Direct Integration
+  const ejsAdminResult = await sendEmailJsNotification(
+    adminEmail,
+    `[NEW BOOKING ALERT] ${booking.customer_name} (${booking.booking_id})`,
+    managerHtml,
+    booking
+  );
+  dispatchLogs.push(ejsAdminResult.log);
+  if (ejsAdminResult.success) isDelivered = true;
+
+  if (targetCustomerEmail.toLowerCase() !== adminEmail.toLowerCase()) {
+    const ejsCustResult = await sendEmailJsNotification(
+      targetCustomerEmail,
+      `KM PALACE Booking Confirmation [${booking.booking_id}]`,
+      customerHtml,
       booking
     );
-    dispatchLogs.push(ejsResult.log);
-    if (ejsResult.success) {
-      isDelivered = true;
-    }
+    dispatchLogs.push(ejsCustResult.log);
+    if (ejsCustResult.success) isDelivered = true;
   }
 
-  // Dispatch Strategy 2: Nodemailer Direct SMTP (Gmail SMTP Service) - Primary Backup Transport
+  // Dispatch Strategy 2: Nodemailer Direct SMTP (Gmail SMTP Service)
   const smtpPorts = [true, false]; // true = 465 SSL, false = 587 STARTTLS
   for (const useSsl of smtpPorts) {
     try {
       const activeTransporter = createTransporter(useSsl);
       const senderEmail = getSmtpUser();
 
-      // Send dedicated direct email to owner (Kannan.d26@gmail.com)
-      for (const recipient of adminRecipients) {
+      // Send Customer Booking Confirmation Email
+      try {
+        const custInfo = await activeTransporter.sendMail({
+          from: `"KM PALACE Royal Convention Hall" <${senderEmail}>`,
+          to: targetCustomerEmail,
+          replyTo: adminEmail,
+          subject: `KM PALACE Booking Confirmation [${booking.booking_id}]`,
+          html: customerHtml,
+        });
+        const custLog = `[NODEMAILER SUCCESS] Customer confirmation sent to ${targetCustomerEmail} (Message ID: ${custInfo.messageId})`;
+        console.log(custLog);
+        dispatchLogs.push(custLog);
+        isDelivered = true;
+      } catch (custErr: any) {
+        const custErrLog = `[NODEMAILER CUSTOMER NOTE] Could not send confirmation to ${targetCustomerEmail}: ${custErr?.message || custErr}`;
+        console.warn(custErrLog);
+        dispatchLogs.push(custErrLog);
+      }
+
+      // Send Admin Booking Alert Email if customer email is different from admin email
+      if (targetCustomerEmail.toLowerCase() !== adminEmail.toLowerCase()) {
         try {
           const mgmtInfo = await activeTransporter.sendMail({
             from: `"KM PALACE Booking Alert" <${senderEmail}>`,
-            to: recipient,
-            replyTo: customerEmail || 'Kannan.d26@gmail.com',
+            to: adminEmail,
+            replyTo: targetCustomerEmail,
             subject: `[NEW BOOKING ALERT] ${booking.customer_name} (${booking.booking_id})`,
             html: managerHtml,
           });
-          const logMsg = `[NODEMAILER SUCCESS] Sent owner alert directly to ${recipient} (Message ID: ${mgmtInfo.messageId})`;
-          console.log(logMsg);
-          dispatchLogs.push(logMsg);
+          const mgmtLog = `[NODEMAILER SUCCESS] Admin alert sent to ${adminEmail} (Message ID: ${mgmtInfo.messageId})`;
+          console.log(mgmtLog);
+          dispatchLogs.push(mgmtLog);
           isDelivered = true;
-        } catch (recipErr: any) {
-          const errLog = `[NODEMAILER MGMT NOTE] Failed sending to ${recipient}: ${recipErr?.message || recipErr}`;
-          console.warn(errLog);
-          dispatchLogs.push(errLog);
-        }
-      }
-
-      // Send customer confirmation copy if different from owner email
-      if (customerEmail && customerEmail.toLowerCase() !== 'kannan.d26@gmail.com') {
-        try {
-          const custInfo = await activeTransporter.sendMail({
-            from: `"KM PALACE Booking" <${senderEmail}>`,
-            to: customerEmail,
-            replyTo: 'Kannan.d26@gmail.com',
-            subject: `KM PALACE Booking Confirmation [${booking.booking_id}]`,
-            html: customerHtml,
-          });
-          const custLog = `[NODEMAILER SUCCESS] Customer confirmation sent to ${customerEmail} (Message ID: ${custInfo.messageId})`;
-          console.log(custLog);
-          dispatchLogs.push(custLog);
-        } catch (custErr: any) {
-          const custErrLog = `[NODEMAILER CUSTOMER NOTE] Could not send to customer (${customerEmail}): ${custErr?.message || custErr}`;
-          console.warn(custErrLog);
-          dispatchLogs.push(custErrLog);
+        } catch (adminErr: any) {
+          const adminErrLog = `[NODEMAILER ADMIN NOTE] Could not send admin alert to ${adminEmail}: ${adminErr?.message || adminErr}`;
+          console.warn(adminErrLog);
+          dispatchLogs.push(adminErrLog);
         }
       }
 
