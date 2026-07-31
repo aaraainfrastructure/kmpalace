@@ -54,6 +54,12 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='slot_type') THEN
         ALTER TABLE bookings ADD COLUMN slot_type VARCHAR(50) DEFAULT '24hr';
     END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='from_time') THEN
+        ALTER TABLE bookings ADD COLUMN from_time VARCHAR(20) DEFAULT '06:00';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='end_time') THEN
+        ALTER TABLE bookings ADD COLUMN end_time VARCHAR(20) DEFAULT '22:00';
+    END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='total_amount') THEN
         ALTER TABLE bookings ADD COLUMN total_amount NUMERIC(12, 2) DEFAULT 364500.00;
     END IF;
