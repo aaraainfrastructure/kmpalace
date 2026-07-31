@@ -1,41 +1,75 @@
 {
-  "nextSequence": 8,
+  "nextSequence": 9,
   "adminBlocks": [],
   "bookings": [
     {
-      "id": "bk_1785474746018_6yo1k",
-      "booking_id": "KM-20260731-007",
-      "customer_name": "Admin Booking Test",
-      "phone": "9840888888",
-      "email": "customer.test@example.com",
-      "customer_address": "KM Palace Admin Office, Chennai",
-      "bride_name": "Divya",
-      "groom_name": "Karthik",
-      "marriage_date": "2026-12-20",
-      "muhurtham_time": "06:30 AM",
-      "from_time": "06:30 AM",
-      "end_time": "22:00",
-      "function_type": "Marriage",
-      "guest_count": 800,
+      "id": "bk_1785479105999_5k5v5",
+      "booking_id": "KM-20260731-008",
+      "customer_name": "Kannan D - Live Test",
+      "phone": "9159277277",
+      "email": "kannan.d26@gmail.com",
+      "customer_address": "KM PALACE Admin Test Address, Chennai",
+      "bride_name": "Priya",
+      "groom_name": "Kannan",
+      "marriage_date": "2026-11-20",
+      "muhurtham_time": "06:00 AM",
+      "from_time": "06:00 AM",
+      "end_time": "22:00 PM",
+      "function_type": "Wedding",
+      "guest_count": 600,
       "requirements": [
-        "Mandapam & Entrance Decoration",
-        "11 A/C Guest Rooms"
+        "Decoration",
+        "Catering",
+        "Rooms"
       ],
       "blocked_previous_day": true,
       "blocked_dates": [
-        "2026-12-19",
-        "2026-12-20"
+        "2026-11-19",
+        "2026-11-20"
       ],
       "booking_status": "Confirmed",
-      "created_at": "2026-07-31T05:12:26.018Z",
-      "notes": "Admin portal entry test",
-      "estimated_amount": 364500,
+      "created_at": "2026-07-31T06:25:05.999Z",
+      "notes": "Testing db persistence and email notification",
+      "estimated_amount": 0,
       "payment_method": "UPI",
       "payment_gateway": "Manual",
       "currency": "INR",
       "customer_region": "India",
       "payment_status": "Pending",
-      "advance_paid_amount": 50000
+      "advance_paid_amount": 0
+    },
+    {
+      "id": "bk_test_1785478998592",
+      "booking_id": "KM-20260731-998",
+      "customer_name": "Test User",
+      "phone": "9876543210",
+      "email": "kannan.d26@gmail.com",
+      "bride_name": "Bride",
+      "groom_name": "Groom",
+      "marriage_date": "2026-08-15",
+      "muhurtham_time": "06:00 AM",
+      "from_time": "06:00 AM",
+      "end_time": "10:00 PM",
+      "function_type": "Wedding",
+      "guest_count": 500,
+      "requirements": [
+        "A/C Hall"
+      ],
+      "blocked_previous_day": false,
+      "blocked_dates": [
+        "2026-08-15"
+      ],
+      "booking_status": "Confirmed",
+      "created_at": "2026-07-31T06:23:18.592+00:00",
+      "notes": "Test booking insert clean",
+      "estimated_amount": 364500,
+      "payment_method": "UPI",
+      "payment_gateway": "Razorpay",
+      "currency": "INR",
+      "customer_region": "India",
+      "payment_status": "Pending",
+      "advance_paid_amount": 50000,
+      "pg_rooms_selected": {}
     },
     {
       "id": "bk_1785222542117_h0qve",

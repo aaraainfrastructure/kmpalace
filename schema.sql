@@ -36,6 +36,20 @@ CREATE TABLE IF NOT EXISTS bookings (
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Ensure optional alias columns exist on existing tables if created previously
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='name') THEN
+        ALTER TABLE bookings ADD COLUMN name VARCHAR(255);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='booking_date') THEN
+        ALTER TABLE bookings ADD COLUMN booking_date DATE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='total_amount') THEN
+        ALTER TABLE bookings ADD COLUMN total_amount NUMERIC(12, 2) DEFAULT 364500.00;
+    END IF;
+END $$;
+
 -- 3. Create 'admin_blocks' Table
 CREATE TABLE IF NOT EXISTS admin_blocks (
     id VARCHAR(100) PRIMARY KEY,
@@ -76,3 +90,10 @@ BEFORE INSERT ON bookings
 FOR EACH ROW
 WHEN (NEW.booking_id IS NULL OR NEW.booking_id = '')
 EXECUTE FUNCTION generate_km_booking_id();
+
+-- 6. Disable RLS or Grant Full Access for PostgREST API Sync
+ALTER TABLE bookings DISABLE ROW LEVEL SECURITY;
+ALTER TABLE admin_blocks DISABLE ROW LEVEL SECURITY;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+

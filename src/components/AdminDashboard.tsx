@@ -347,7 +347,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setAdminActiveTab('create_booking')}
+            className="flex items-center space-x-2 px-5 py-2.5 rounded-[12px] bg-[linear-gradient(135deg,#7A0019_0%,#A80022_100%)] text-[#D4AF37] hover:brightness-110 font-bold text-xs uppercase tracking-wider transition-all shadow-[0_4px_15px_rgba(122,0,25,0.4)] border-2 border-[#D4AF37] animate-pulse cursor-pointer"
+          >
+            <Plus className="w-4 h-4 text-[#D4AF37]" />
+            <span>➕ CREATE NEW BOOKING</span>
+          </button>
+
           <button
             onClick={() => exportToExcel(filteredBookings)}
             className="flex items-center space-x-1.5 px-4 py-2.5 rounded-[12px] bg-[#7D9B6A] hover:bg-[#6c875b] text-white font-semibold text-xs transition-colors shadow-2xs cursor-pointer"
@@ -480,6 +489,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             adminBlocks={adminBlocks}
             onSubmitSuccess={(newBooking) => {
               onRefreshData();
+              setViewingBooking(newBooking);
               setAdminActiveTab('bookings');
             }}
           />

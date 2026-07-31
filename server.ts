@@ -8,7 +8,7 @@ import { Booking, AdminManualBlock } from './src/types';
 import { calculateBlockedDates, checkBookingConflict, generateBookingId, formatDisplayDate } from './src/lib/bookingLogic';
 
 // Supabase Cloud Storage Client
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://htlgfpfmjuneswmqpxfw.supabase.com';
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://htlgfpfmjuneswmqpxfw.supabase.co';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0bGdmcGZtanVuZXN3bXFweGZ3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDc5OTA0MSwiZXhwIjoyMTAwMzc1MDQxfQ.J-KTnHZbClHeBBtrp4PMQmXZG0h7wbG7PVZ-QmITyB0';
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -155,30 +155,27 @@ async function saveBookingToSupabase(booking: Booking) {
       id: booking.id,
       booking_id: booking.booking_id,
       customer_name: booking.customer_name,
-      name: booking.customer_name,
       customer_address: booking.customer_address || '',
       phone: booking.phone,
       email: booking.email,
-      bride_name: booking.bride_name,
-      groom_name: booking.groom_name,
+      bride_name: booking.bride_name || '',
+      groom_name: booking.groom_name || '',
       marriage_date: booking.marriage_date,
-      booking_date: booking.marriage_date,
       muhurtham_time: booking.muhurtham_time,
       from_time: booking.from_time,
       end_time: booking.end_time,
       function_type: booking.function_type,
       guest_count: booking.guest_count,
-      requirements: booking.requirements,
-      blocked_previous_day: booking.blocked_previous_day,
-      blocked_dates: booking.blocked_dates,
-      total_amount: booking.estimated_amount,
+      requirements: booking.requirements || [],
+      blocked_previous_day: booking.blocked_previous_day ?? false,
+      blocked_dates: booking.blocked_dates || [booking.marriage_date],
       estimated_amount: booking.estimated_amount,
-      payment_status: booking.payment_status,
-      payment_method: booking.payment_method,
-      advance_paid_amount: booking.advance_paid_amount,
-      booking_status: booking.booking_status,
-      notes: booking.notes,
-      created_at: booking.created_at,
+      payment_status: booking.payment_status || 'Pending',
+      payment_method: booking.payment_method || 'UPI',
+      advance_paid_amount: booking.advance_paid_amount || 0,
+      booking_status: booking.booking_status || 'Confirmed',
+      notes: booking.notes || '',
+      created_at: booking.created_at || new Date().toISOString(),
     };
 
     const { error } = await supabase.from('bookings').upsert([payload], { onConflict: 'id' });
@@ -187,9 +184,11 @@ async function saveBookingToSupabase(booking: Booking) {
       const { error: insError } = await supabase.from('bookings').insert([payload]);
       if (insError) {
         console.warn('[Supabase Direct Insert Warning]:', insError.message || insError);
+      } else {
+        console.log(`[Supabase Direct Insert Success] Booking ${booking.booking_id} saved.`);
       }
     } else {
-      console.log(`[Supabase Success] Booking ${booking.booking_id} saved to Supabase.`);
+      console.log(`[Supabase Upsert Success] Booking ${booking.booking_id} saved to database.`);
     }
   } catch (err: any) {
     console.error('[Supabase Save Exception]:', err?.message || err);

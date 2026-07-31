@@ -473,6 +473,28 @@ export default function App() {
         onNavigateSection={handleNavigateSection}
       />
 
+      {/* Booking Confirmation Success Modal */}
+      <SuccessModal
+        booking={submittedBooking}
+        onClose={() => setSubmittedBooking(null)}
+      />
+
+      {/* Google Play & Terms Policies Modal */}
+      <GooglePlayPoliciesModal
+        isOpen={isPoliciesOpen}
+        onClose={() => setIsPoliciesOpen(false)}
+      />
+
+      {/* Sitemap Modal */}
+      <SitemapModal
+        isOpen={isSitemapOpen}
+        onClose={() => setIsSitemapOpen(false)}
+        onNavigateSection={handleNavigateSection}
+        onOpenCalendar={handleOpenCalendar}
+        onOpenAdmin={handleOpenAdmin}
+        onOpenBlog={handleOpenBlog}
+      />
+
     </div>
   );
 }
