@@ -172,6 +172,11 @@ async function saveBookingToSupabase(booking: Booking) {
       estimated_amount: booking.estimated_amount,
       payment_status: booking.payment_status || 'Pending',
       payment_method: booking.payment_method || 'UPI',
+      payment_gateway: booking.payment_gateway || 'Manual',
+      currency: booking.currency || 'INR',
+      customer_region: booking.customer_region || 'India',
+      pg_transaction_id: booking.pg_transaction_id || null,
+      pg_rooms_selected: booking.pg_rooms_selected || null,
       advance_paid_amount: booking.advance_paid_amount || 0,
       booking_status: booking.booking_status || 'Confirmed',
       notes: booking.notes || '',
@@ -901,18 +906,22 @@ app.post('/api/bookings', async (req: Request, res: Response) => {
     const groomNameVal = ((req.body.groom_name || req.body.groomName || '') as string).trim();
     const customerNameVal = ((req.body.customer_name || req.body.customerName || '') as string).trim();
     const customerAddressVal = ((customer_address || req.body.customerAddress || '') as string).trim();
+    const phoneVal = (phone || req.body.mobile || '').toString().trim();
+    const emailVal = (email || '').toString().trim();
+    const marriageDateVal = (marriage_date || req.body.marriageDate || '').toString().trim();
+    const muhurthamTimeVal = (muhurtham_time || req.body.muhurthamTime || '').toString().trim();
 
     // Server-side validations
-    if (!customerNameVal || !phone || !email || !marriage_date || !muhurtham_time) {
-      return res.status(400).json({ error: 'Please complete all required fields.' });
+    if (!customerNameVal || !phoneVal || !emailVal || !marriageDateVal || !muhurthamTimeVal) {
+      return res.status(400).json({ error: 'Please complete all required fields (Customer Name, Phone, Email, Marriage Date, Muhurtham Time).' });
     }
 
     const data = await loadDataWithSupabase();
 
     // Check conflict
     const { hasConflict, conflictReason, conflictingDates } = checkBookingConflict(
-      marriage_date,
-      muhurtham_time,
+      marriageDateVal,
+      muhurthamTimeVal,
       data.bookings,
       data.adminBlocks
     );
@@ -926,7 +935,7 @@ app.post('/api/bookings', async (req: Request, res: Response) => {
     }
 
     // Calculate dates to block
-    const { blockedDates, blockedPreviousDay } = calculateBlockedDates(marriage_date, muhurtham_time);
+    const { blockedDates, blockedPreviousDay } = calculateBlockedDates(marriageDateVal, muhurthamTimeVal);
 
     // Generate unique reference ID like KM-20260729-001
     let seq = data.nextSequence || (data.bookings.length + 1);
@@ -941,14 +950,14 @@ app.post('/api/bookings', async (req: Request, res: Response) => {
       id: 'bk_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
       booking_id,
       customer_name: customerNameVal,
-      phone: phone.trim(),
-      email: email.trim(),
+      phone: phoneVal,
+      email: emailVal,
       customer_address: customerAddressVal,
       bride_name: brideNameVal,
       groom_name: groomNameVal,
-      marriage_date,
-      muhurtham_time,
-      from_time: from_time || muhurtham_time || '06:00',
+      marriage_date: marriageDateVal,
+      muhurtham_time: muhurthamTimeVal,
+      from_time: from_time || muhurthamTimeVal || '06:00',
       end_time: end_time || '22:00',
       function_type: function_type || 'Wedding',
       guest_count: Number(guest_count) || 0,
@@ -974,15 +983,14 @@ app.post('/api/bookings', async (req: Request, res: Response) => {
     saveServerData(data);
     await saveBookingToSupabase(newBooking);
 
-    // Await email dispatch synchronously so background process does not terminate before SMTP transmission completes
-    let emailStatus = 'QUEUED';
-    try {
-      const emailResult = await sendBookingNotificationEmail(newBooking);
-      emailStatus = emailResult.isDelivered ? 'DELIVERED' : 'FAILED';
-      console.log(`[BOOKING CREATED] Email dispatch status: ${emailStatus}`);
-    } catch (emailErr) {
-      console.error('[BOOKING CREATED EMAIL ERROR]', emailErr);
-    }
+    // Non-blocking asynchronous email dispatch for fast HTTP response (<200ms)
+    sendBookingNotificationEmail(newBooking)
+      .then((emailResult) => {
+        console.log(`[BOOKING CREATED] Email dispatch status: ${emailResult.isDelivered ? 'DELIVERED' : 'FAILED'}`);
+      })
+      .catch((emailErr) => {
+        console.error('[BOOKING CREATED EMAIL ERROR]', emailErr);
+      });
 
     res.status(201).json({
       success: true,

@@ -293,7 +293,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
       }
 
       const data = await res.json().catch(() => ({}));
-      const errText = data.error || data.conflictReason || 'Server rejected booking. Please verify details and retry.';
+      const errText = data.conflictReason || data.error || data.message || 'Booking submission failed. Please check date availability or required fields and try again.';
       setErrorMessage(errText);
       setSubmitting(false);
       return;
