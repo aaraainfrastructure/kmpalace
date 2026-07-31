@@ -293,16 +293,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 <p className="text-[#6F655B]">
                   🟢 KM PALACE Hall is completely free and available for booking on <strong className="text-[#2E2A26] font-num">{formatDisplayDate(selectedDayDetails.dateStr)}</strong>!
                 </p>
-                <button
-                  onClick={() => {
-                    const date = selectedDayDetails.dateStr;
-                    setSelectedDayDetails(null);
-                    onSelectDateToBook(date);
-                  }}
-                  className="btn-gold px-5 py-2.5 rounded-[12px] font-semibold text-xs cursor-pointer shrink-0"
-                >
-                  Book Hall for {formatDisplayDate(selectedDayDetails.dateStr)}
-                </button>
               </div>
             )}
 
