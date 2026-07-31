@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS bookings (
     groom_name VARCHAR(255),
     marriage_date DATE NOT NULL,
     booking_date DATE,
+    slot_type VARCHAR(50) DEFAULT '24hr',
     muhurtham_time VARCHAR(20) NOT NULL,
     from_time VARCHAR(20) DEFAULT '06:00',
     end_time VARCHAR(20) DEFAULT '22:00',
@@ -49,6 +50,9 @@ BEGIN
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='booking_date') THEN
         ALTER TABLE bookings ADD COLUMN booking_date DATE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='slot_type') THEN
+        ALTER TABLE bookings ADD COLUMN slot_type VARCHAR(50) DEFAULT '24hr';
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='total_amount') THEN
         ALTER TABLE bookings ADD COLUMN total_amount NUMERIC(12, 2) DEFAULT 364500.00;
