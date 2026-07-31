@@ -81,6 +81,18 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='pg_rooms_selected') THEN
         ALTER TABLE bookings ADD COLUMN pg_rooms_selected JSONB;
     END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='advance_paid_amount') THEN
+        ALTER TABLE bookings ADD COLUMN advance_paid_amount NUMERIC(12, 2) DEFAULT 0.00;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='estimated_amount') THEN
+        ALTER TABLE bookings ADD COLUMN estimated_amount NUMERIC(12, 2) DEFAULT 364500.00;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='blocked_dates') THEN
+        ALTER TABLE bookings ADD COLUMN blocked_dates TEXT[];
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='requirements') THEN
+        ALTER TABLE bookings ADD COLUMN requirements TEXT[];
+    END IF;
 END $$;
 
 -- 3. Create 'admin_blocks' Table
