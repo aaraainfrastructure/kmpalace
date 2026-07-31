@@ -173,7 +173,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           booking_id: booking.booking_id,
-          target_email: 'Kannan.d26@gmail.com',
+          target_email: booking.email || 'Kannan.d26@gmail.com',
         }),
       });
       setEmailSuccessId(booking.id);

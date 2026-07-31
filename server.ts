@@ -354,14 +354,28 @@ async function sendEmailJsNotification(
   };
 }
 
-// Email dispatch logic
-async function sendBookingNotificationEmail(booking: Booking) {
-  const primaryEmail = 'Kannan.d26@gmail.com';
-  const customerEmail = booking.email?.trim();
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Snowboy@2226';
 
-  console.log(`[EMAIL DISPATCH] Triggering notifications for Booking Ref: ${booking.booking_id}`);
-  console.log(`  -> Customer Email: ${customerEmail || 'None'}`);
-  console.log(`  -> Owner Recipient: ${primaryEmail}`);
+function verifyAdmin(req: Request): boolean {
+  const authHeader = req.headers.authorization;
+  const adminKeyHeader = req.headers['x-admin-key'];
+  if (authHeader && authHeader.replace('Bearer ', '').trim() === ADMIN_PASSWORD) {
+    return true;
+  }
+  if (adminKeyHeader && String(adminKeyHeader).trim() === ADMIN_PASSWORD) {
+    return true;
+  }
+  return false;
+}
+
+// Single Primary Email Dispatch Logic via Nodemailer SMTP
+async function sendBookingNotificationEmail(booking: Booking, overrideRecipient?: string) {
+  const adminEmail = 'Kannan.d26@gmail.com';
+  const targetCustomerEmail = (overrideRecipient || booking.email || adminEmail).trim();
+
+  console.log(`[EMAIL DISPATCH] Triggering notification for Booking Ref: ${booking.booking_id}`);
+  console.log(`  -> Customer Recipient: ${targetCustomerEmail}`);
+  console.log(`  -> Admin Recipient: ${adminEmail}`);
 
   const brideNameClean = (booking.bride_name || '').trim();
   const groomNameClean = (booking.groom_name || '').trim();
@@ -458,26 +472,12 @@ async function sendBookingNotificationEmail(booking: Booking) {
                 : 'Direct Venue Booking / Pay at Venue'}
             </td>
           </tr>
-          <tr style="background-color: #FFFFFF;">
-            <td style="padding: 10px 12px; border-bottom: 1px solid #E2E8F0; font-weight: bold; color: #4A5568;">Guest Rooms & Accommodation</td>
-            <td style="padding: 10px 12px; border-bottom: 1px solid #E2E8F0; color: #1A202C;">
-              ${booking.pg_rooms_selected ? `${booking.pg_rooms_selected.triple_rooms} Triple Rooms (₹2k/ea), ${booking.pg_rooms_selected.eight_person_rooms} Group Rooms (₹3k/ea)` : 'Standard Bride & Groom Suites included'}
-            </td>
-          </tr>
-          <tr style="background-color: #F8FAFC;">
-            <td style="padding: 10px 12px; border-bottom: 1px solid #E2E8F0; font-weight: bold; color: #4A5568;">Mandatory Caution Deposit</td>
-            <td style="padding: 10px 12px; border-bottom: 1px solid #E2E8F0; color: #1A202C; font-weight: bold;">₹20,000 (Refundable post-event)</td>
-          </tr>
-          <tr style="background-color: #FFFFFF;">
-            <td style="padding: 10px 12px; border-bottom: 1px solid #E2E8F0; font-weight: bold; color: #4A5568;">Special Requirements</td>
-            <td style="padding: 10px 12px; border-bottom: 1px solid #E2E8F0; color: #1A202C;">${(booking.requirements || []).join(', ') || 'Standard Hall Package'}</td>
-          </tr>
         </table>
 
         <!-- Contact Box -->
         <div style="background-color: #FFF5F5; border-left: 4px solid #7A0019; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
           <p style="margin: 0 0 6px; font-weight: bold; color: #7A0019; font-size: 13px;">Venue Contact & Support:</p>
-          <p style="margin: 0; font-size: 12px; color: #4A5568; leading-height: 1.6;">
+          <p style="margin: 0; font-size: 12px; color: #4A5568;">
             <strong>Phone:</strong> +91 9159277277<br/>
             <strong>Address:</strong> 9/133, Sirukalathur Main Rd, Kavanur, Chembarambakkam, Tamil Nadu 600069, India<br/>
             <strong>Email:</strong> Kannan.d26@gmail.com
@@ -524,154 +524,61 @@ async function sendBookingNotificationEmail(booking: Booking) {
     </div>
   `;
 
-  // Email Dispatch Settings
-  const adminEmail = 'Kannan.d26@gmail.com';
-  const targetCustomerEmail = (booking.email || 'Kannan.d26@gmail.com').trim();
   let isDelivered = false;
   const dispatchLogs: string[] = [];
 
-  // Dispatch Strategy 1: EmailJS Direct Integration
-  const ejsAdminResult = await sendEmailJsNotification(
-    adminEmail,
-    `[NEW BOOKING ALERT] ${booking.customer_name} (${booking.booking_id})`,
-    managerHtml,
-    booking
-  );
-  dispatchLogs.push(ejsAdminResult.log);
-  if (ejsAdminResult.success) isDelivered = true;
+  try {
+    const transporter = createTransporter();
+    const senderEmail = getSmtpUser();
 
-  if (targetCustomerEmail.toLowerCase() !== adminEmail.toLowerCase()) {
-    const ejsCustResult = await sendEmailJsNotification(
-      targetCustomerEmail,
-      `KM PALACE Booking Confirmation [${booking.booking_id}]`,
-      customerHtml,
-      booking
-    );
-    dispatchLogs.push(ejsCustResult.log);
-    if (ejsCustResult.success) isDelivered = true;
-  }
-
-  // Dispatch Strategy 2: Nodemailer Direct SMTP (Gmail SMTP Service)
-  const smtpPorts = [true, false]; // true = 465 SSL, false = 587 STARTTLS
-  for (const useSsl of smtpPorts) {
+    // 1. Send Customer / Specified Recipient Booking Confirmation Email
     try {
-      const activeTransporter = createTransporter(useSsl);
-      const senderEmail = getSmtpUser();
+      const custInfo = await transporter.sendMail({
+        from: `"KM PALACE Royal Convention Hall" <${senderEmail}>`,
+        to: targetCustomerEmail,
+        replyTo: adminEmail,
+        subject: `KM PALACE Booking Confirmation [${booking.booking_id}]`,
+        html: customerHtml,
+      });
+      const custLog = `[SMTP SUCCESS] Confirmation sent to ${targetCustomerEmail} (Message ID: ${custInfo.messageId})`;
+      console.log(custLog);
+      dispatchLogs.push(custLog);
+      isDelivered = true;
+    } catch (custErr: any) {
+      const custErrLog = `[SMTP CUSTOMER NOTE] Could not send confirmation to ${targetCustomerEmail}: ${custErr?.message || custErr}`;
+      console.warn(custErrLog);
+      dispatchLogs.push(custErrLog);
+    }
 
-      // Send Customer Booking Confirmation Email
+    // 2. Send Admin Booking Alert Email if recipient is distinct from admin email
+    if (targetCustomerEmail.toLowerCase() !== adminEmail.toLowerCase()) {
       try {
-        const custInfo = await activeTransporter.sendMail({
-          from: `"KM PALACE Royal Convention Hall" <${senderEmail}>`,
-          to: targetCustomerEmail,
-          replyTo: adminEmail,
-          subject: `KM PALACE Booking Confirmation [${booking.booking_id}]`,
-          html: customerHtml,
+        const mgmtInfo = await transporter.sendMail({
+          from: `"KM PALACE Booking Alert" <${senderEmail}>`,
+          to: adminEmail,
+          replyTo: targetCustomerEmail,
+          subject: `[NEW BOOKING ALERT] ${booking.customer_name} (${booking.booking_id})`,
+          html: managerHtml,
         });
-        const custLog = `[NODEMAILER SUCCESS] Customer confirmation sent to ${targetCustomerEmail} (Message ID: ${custInfo.messageId})`;
-        console.log(custLog);
-        dispatchLogs.push(custLog);
-        isDelivered = true;
-      } catch (custErr: any) {
-        const custErrLog = `[NODEMAILER CUSTOMER NOTE] Could not send confirmation to ${targetCustomerEmail}: ${custErr?.message || custErr}`;
-        console.warn(custErrLog);
-        dispatchLogs.push(custErrLog);
-      }
-
-      // Send Admin Booking Alert Email if customer email is different from admin email
-      if (targetCustomerEmail.toLowerCase() !== adminEmail.toLowerCase()) {
-        try {
-          const mgmtInfo = await activeTransporter.sendMail({
-            from: `"KM PALACE Booking Alert" <${senderEmail}>`,
-            to: adminEmail,
-            replyTo: targetCustomerEmail,
-            subject: `[NEW BOOKING ALERT] ${booking.customer_name} (${booking.booking_id})`,
-            html: managerHtml,
-          });
-          const mgmtLog = `[NODEMAILER SUCCESS] Admin alert sent to ${adminEmail} (Message ID: ${mgmtInfo.messageId})`;
-          console.log(mgmtLog);
-          dispatchLogs.push(mgmtLog);
-          isDelivered = true;
-        } catch (adminErr: any) {
-          const adminErrLog = `[NODEMAILER ADMIN NOTE] Could not send admin alert to ${adminEmail}: ${adminErr?.message || adminErr}`;
-          console.warn(adminErrLog);
-          dispatchLogs.push(adminErrLog);
-        }
-      }
-
-      if (isDelivered) break;
-    } catch (smtpErr: any) {
-      const smtpErrLog = `[NODEMAILER SMTP NOTICE] SMTP Port ${useSsl ? 465 : 587} unavailable: ${smtpErr?.message || smtpErr}`;
-      console.warn(smtpErrLog);
-      dispatchLogs.push(smtpErrLog);
-    }
-  }
-
-  // Dispatch Strategy 2: Resend HTTP API (Secondary / Fallback)
-  if (!isDelivered) {
-    const resendKey = getResendApiKey();
-    if (resendKey) {
-      try {
-        const resend = new Resend(resendKey);
-        const primaryFrom = process.env.RESEND_FROM_EMAIL || 'KM PALACE <booking@kmpalace.com>';
-        const fallbackFrom = 'KM PALACE <onboarding@resend.dev>';
-
-        const sendResendEmail = async (to: string, subject: string, html: string) => {
-          try {
-            const res = await resend.emails.send({ from: primaryFrom, to: [to], subject, html });
-            if (res.error) throw new Error(res.error.message);
-            return true;
-          } catch (err: any) {
-            console.warn(`[RESEND PRIMARY NOTE for ${to}]: ${err?.message || err}. Retrying via onboarding address...`);
-            try {
-              const fbRes = await resend.emails.send({ from: fallbackFrom, to: [to], subject, html });
-              if (fbRes.error) throw new Error(fbRes.error.message);
-              return true;
-            } catch (fbErr: any) {
-              console.warn(`[RESEND FALLBACK NOTE for ${to}]: ${fbErr?.message || fbErr}`);
-              return false;
-            }
-          }
-        };
-
-        const adminRecipients = [adminEmail, 'KMpalace2026@gmail.com'];
-        for (const recipient of adminRecipients) {
-          const sent = await sendResendEmail(
-            recipient,
-            `[NEW BOOKING] Notification: ${booking.booking_id} (${booking.customer_name})`,
-            managerHtml
-          );
-          if (sent) {
-            const rLog = `[RESEND SUCCESS] Sent booking notification to ${recipient}`;
-            console.log(rLog);
-            dispatchLogs.push(rLog);
-            isDelivered = true;
-          }
-        }
-
-        if (targetCustomerEmail) {
-          const sentCust = await sendResendEmail(
-            targetCustomerEmail,
-            `KM PALACE Booking Confirmation [${booking.booking_id}]`,
-            customerHtml
-          );
-          if (sentCust) {
-            const rCustLog = `[RESEND SUCCESS] Sent customer confirmation to ${targetCustomerEmail}`;
-            console.log(rCustLog);
-            dispatchLogs.push(rCustLog);
-          }
-        }
-      } catch (resendErr: any) {
-        const resendErrLog = `[RESEND NOTICE] ${resendErr?.message || resendErr}`;
-        console.warn(resendErrLog);
-        dispatchLogs.push(resendErrLog);
+        const mgmtLog = `[SMTP SUCCESS] Admin alert sent to ${adminEmail} (Message ID: ${mgmtInfo.messageId})`;
+        console.log(mgmtLog);
+        dispatchLogs.push(mgmtLog);
+      } catch (adminErr: any) {
+        const adminErrLog = `[SMTP ADMIN NOTE] Could not send admin alert to ${adminEmail}: ${adminErr?.message || adminErr}`;
+        console.warn(adminErrLog);
+        dispatchLogs.push(adminErrLog);
       }
     }
+  } catch (smtpErr: any) {
+    const smtpErrLog = `[SMTP NOTICE] Transporter error: ${smtpErr?.message || smtpErr}`;
+    console.warn(smtpErrLog);
+    dispatchLogs.push(smtpErrLog);
   }
 
   console.log('----------------------------------------------------');
   console.log('[EMAIL DISPATCH LOG] Summary:');
-  console.log(`1. Management Email (Kannan.d26@gmail.com): Status = ${isDelivered ? 'DELIVERED' : 'QUEUED/FALLBACK'}`);
-  console.log(`2. Customer Email (${customerEmail || 'N/A'}): Confirmation for ${booking.booking_id}`);
+  console.log(`1. Target Email (${targetCustomerEmail}): ${isDelivered ? 'DELIVERED' : 'LOGGED'}`);
+  console.log(`2. Admin Email (${adminEmail}): Management Alert`);
   console.log('----------------------------------------------------');
 
   return { isDelivered, logs: dispatchLogs };
@@ -866,10 +773,34 @@ Hotline: +91 9159277277
 Email: Kannan.d26@gmail.com`);
 });
 
-// GET all bookings
+// GET all bookings (Admin gets full details, public gets sanitized calendar availability)
 app.get('/api/bookings', async (req: Request, res: Response) => {
   const data = await loadDataWithSupabase();
-  res.json({ bookings: data.bookings, adminBlocks: data.adminBlocks });
+  const isAdmin = verifyAdmin(req);
+
+  if (isAdmin) {
+    return res.json({ bookings: data.bookings, adminBlocks: data.adminBlocks });
+  }
+
+  // Public visitor view: sanitize customer PII while retaining booking availability & dates
+  const sanitizedBookings = (data.bookings || []).map((b) => ({
+    id: b.id,
+    booking_id: b.booking_id,
+    customer_name: b.customer_name ? `${b.customer_name.slice(0, 3)}***` : 'Reserved',
+    marriage_date: b.marriage_date,
+    blocked_dates: b.blocked_dates,
+    blocked_previous_day: b.blocked_previous_day,
+    slot_type: b.slot_type,
+    muhurtham_time: b.muhurtham_time,
+    from_time: b.from_time,
+    end_time: b.end_time,
+    function_type: b.function_type,
+    booking_status: b.booking_status,
+    created_at: b.created_at,
+    requirements: b.requirements,
+  }));
+
+  res.json({ bookings: sanitizedBookings, adminBlocks: data.adminBlocks });
 });
 
 // POST check availability dynamically
@@ -1042,6 +973,10 @@ app.post('/api/bookings', async (req: Request, res: Response) => {
 
 // PATCH update booking status or details
 app.patch('/api/bookings/:id', async (req: Request, res: Response) => {
+  if (!verifyAdmin(req)) {
+    return res.status(401).json({ error: 'Unauthorized: Admin authentication required.' });
+  }
+
   const { id } = req.params;
   const updates = req.body;
 
@@ -1080,6 +1015,10 @@ app.patch('/api/bookings/:id', async (req: Request, res: Response) => {
 
 // DELETE booking
 app.delete('/api/bookings/:id', async (req: Request, res: Response) => {
+  if (!verifyAdmin(req)) {
+    return res.status(401).json({ error: 'Unauthorized: Admin authentication required.' });
+  }
+
   const { id } = req.params;
   const data = await loadDataWithSupabase();
   
@@ -1099,7 +1038,7 @@ app.delete('/api/bookings/:id', async (req: Request, res: Response) => {
 // POST forward invoice email to target email (default: Kannan.d26@gmail.com)
 app.post('/api/bookings/forward-email', async (req: Request, res: Response) => {
   const { booking_id, target_email } = req.body;
-  const recipient = target_email || 'Kannan.d26@gmail.com';
+  const recipient = (target_email || 'Kannan.d26@gmail.com').trim();
 
   const data = await loadDataWithSupabase();
   let booking: Booking | undefined;
@@ -1115,21 +1054,28 @@ app.post('/api/bookings/forward-email', async (req: Request, res: Response) => {
   }
 
   try {
-    await sendBookingNotificationEmail(booking);
+    const dispatchResult = await sendBookingNotificationEmail(booking, recipient);
     res.json({
-      success: true,
-      message: `Invoice for booking ${booking.booking_id} successfully forwarded to ${recipient}`,
+      success: dispatchResult.isDelivered,
+      message: dispatchResult.isDelivered
+        ? `Invoice for booking ${booking.booking_id} successfully forwarded to ${recipient}`
+        : `Notification process logged for ${recipient}`,
       booking_id: booking.booking_id,
       recipient,
+      logs: dispatchResult.logs,
     });
   } catch (err: any) {
     console.error('Error forwarding invoice email:', err);
-    res.status(500).json({ error: 'Failed to dispatch invoice email.' });
+    res.status(500).json({ error: 'Failed to dispatch invoice email.', message: err?.message || String(err) });
   }
 });
 
 // POST Admin Manual Date Block (Supports single date, array of dates, or date range)
 app.post('/api/admin/blocks', async (req: Request, res: Response) => {
+  if (!verifyAdmin(req)) {
+    return res.status(401).json({ error: 'Unauthorized: Admin authentication required.' });
+  }
+
   const { date, dates, startDate, endDate, reason } = req.body;
   const blockReason = reason || 'Hall Maintenance';
 
@@ -1175,6 +1121,10 @@ app.post('/api/admin/blocks', async (req: Request, res: Response) => {
 
 // DELETE Admin Manual Date Block
 app.delete('/api/admin/blocks/:id', async (req: Request, res: Response) => {
+  if (!verifyAdmin(req)) {
+    return res.status(401).json({ error: 'Unauthorized: Admin authentication required.' });
+  }
+
   const { id } = req.params;
   const data = await loadDataWithSupabase();
   data.adminBlocks = data.adminBlocks.filter((b) => b.id !== id && b.date !== id);

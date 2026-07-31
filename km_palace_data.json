@@ -1,12 +1,44 @@
 {
   "bookings": [
     {
+      "id": "bk_1785497058694_7oc25",
+      "booking_id": "KM-20260731-024",
+      "customer_name": "Test Verification User",
+      "phone": "9876543210",
+      "email": "Kannan.d26@gmail.com",
+      "customer_address": "",
+      "bride_name": "",
+      "groom_name": "",
+      "marriage_date": "2026-11-15",
+      "slot_type": "24hr",
+      "muhurtham_time": "09:00 AM",
+      "from_time": "12:00",
+      "end_time": "12:00",
+      "function_type": "Wedding",
+      "guest_count": 500,
+      "requirements": [],
+      "blocked_previous_day": false,
+      "blocked_dates": [
+        "2026-11-15",
+        "2026-11-16"
+      ],
+      "booking_status": "Confirmed",
+      "created_at": "2026-07-31T11:24:18.694Z",
+      "notes": "",
+      "estimated_amount": 0,
+      "payment_method": "Direct Venue",
+      "payment_gateway": "Manual",
+      "currency": "INR",
+      "customer_region": "India",
+      "payment_status": "Pending",
+      "advance_paid_amount": 0
+    },
+    {
       "id": "bk_1785494313047_p3s9d",
       "booking_id": "KM-20260731-023",
       "customer_name": "Suresh Raina",
       "phone": "9159277277",
       "email": "suresh@example.com",
-      "customer_address": "No 12 Anna Nagar, Chennai",
       "bride_name": "Divya",
       "groom_name": "Suresh",
       "marriage_date": "2029-08-15",
@@ -27,7 +59,7 @@
         "2029-08-16"
       ],
       "booking_status": "Confirmed",
-      "created_at": "2026-07-31T10:38:33.047Z",
+      "created_at": "2026-07-31T10:38:33.047+00:00",
       "notes": "Testing post-fix booking creation",
       "estimated_amount": 364500,
       "payment_method": "Direct Venue",
@@ -593,5 +625,5 @@
     }
   ],
   "adminBlocks": [],
-  "nextSequence": 24
+  "nextSequence": 25
 }

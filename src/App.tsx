@@ -48,26 +48,32 @@ export default function App() {
         setIsDbConnected(true);
         return true;
       }
-      // If server responds, set active
-      setIsDbConnected(true);
-      return true;
+      setIsDbConnected(false);
+      return false;
     } catch {
-      // Local client storage active
-      setIsDbConnected(true);
-      return true;
+      setIsDbConnected(false);
+      return false;
     }
   };
 
+  const adminAuthHeader = { Authorization: 'Bearer Snowboy@2226' };
+
   // Load data on mount from REST API
-  const fetchData = async () => {
+  const fetchData = async (isAdminView = false) => {
     try {
-      const res = await fetch('/api/bookings');
+      const headers: Record<string, string> = {};
+      if (isAdminView) {
+        headers['Authorization'] = 'Bearer Snowboy@2226';
+      }
+      const res = await fetch('/api/bookings', { headers });
       if (res.ok) {
         const data = await res.json();
         setBookings(data.bookings || []);
         setAdminBlocks(data.adminBlocks || []);
-        saveStoredBookings(data.bookings || []);
-        saveStoredAdminBlocks(data.adminBlocks || []);
+        if (isAdminView) {
+          saveStoredBookings(data.bookings || []);
+          saveStoredAdminBlocks(data.adminBlocks || []);
+        }
         setIsDbConnected(true);
         return;
       }
@@ -77,11 +83,10 @@ export default function App() {
     // Fallback
     setBookings(getStoredBookings());
     setAdminBlocks(getStoredAdminBlocks());
-    setIsDbConnected(true);
   };
 
   useEffect(() => {
-    fetchData();
+    fetchData(activeTab === 'admin');
     checkDbHealth();
 
     const interval = setInterval(() => {
@@ -90,6 +95,12 @@ export default function App() {
 
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'admin') {
+      fetchData(true);
+    }
+  }, [activeTab]);
 
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);
@@ -146,7 +157,7 @@ export default function App() {
     try {
       await fetch(`/api/bookings/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer Snowboy@2226' },
         body: JSON.stringify({ booking_status: status }),
       });
     } catch (err) {
@@ -161,7 +172,7 @@ export default function App() {
     try {
       const res = await fetch(`/api/bookings/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer Snowboy@2226' },
         body: JSON.stringify(updatedFields),
       });
       if (res.ok) {
@@ -184,7 +195,10 @@ export default function App() {
   const handleDeleteBooking = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this booking?')) return;
     try {
-      await fetch(`/api/bookings/${id}`, { method: 'DELETE' });
+      await fetch(`/api/bookings/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer Snowboy@2226' },
+      });
     } catch (err) {
       console.error('Error deleting booking:', err);
     }
@@ -210,7 +224,7 @@ export default function App() {
 
       const res = await fetch('/api/admin/blocks', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer Snowboy@2226' },
         body: JSON.stringify(body),
       });
       if (res.ok) {
@@ -220,7 +234,7 @@ export default function App() {
         } else if (data.block) {
           setAdminBlocks((prev) => [...prev, data.block]);
         }
-        fetchData(); // Sync with server
+        fetchData(true); // Sync with server
       }
     } catch (err) {
       console.error('Error adding block:', err);
@@ -229,7 +243,10 @@ export default function App() {
 
   const handleDeleteAdminBlock = async (id: string) => {
     try {
-      await fetch(`/api/admin/blocks/${id}`, { method: 'DELETE' });
+      await fetch(`/api/admin/blocks/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer Snowboy@2226' },
+      });
     } catch (err) {
       console.error('Error deleting block:', err);
     }

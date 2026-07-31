@@ -301,46 +301,11 @@ export const BookingForm: React.FC<BookingFormProps> = ({
       setSubmitting(false);
       return;
     } catch (err: any) {
-      console.warn('Network or server error, proceeding with instant local reservation confirmation:', err);
+      console.error('Network or server error submitting booking:', err);
+      setErrorMessage('Unable to connect to the booking server. Please check your network connection and try again.');
+      setSubmitting(false);
+      return;
     }
-
-    // High availability client fallback confirmation (for offline mode)
-    const fallbackBooking: Booking = {
-      id: 'bk_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
-      booking_id: 'KM-' + (marriageDate ? marriageDate.replace(/-/g, '') : '20260725') + '-' + Math.floor(Math.random() * 899 + 100),
-      customer_name: customerName,
-      phone,
-      email,
-      customer_address: customerAddress,
-      bride_name: brideName,
-      groom_name: groomName,
-      marriage_date: marriageDate,
-      muhurtham_time: muhurthamTime,
-      from_time: fromTime,
-      end_time: endTime,
-      function_type: functionType,
-      guest_count: guestCount,
-      requirements: selectedRequirements,
-      blocked_previous_day: false,
-      blocked_dates: [marriageDate],
-      booking_status: 'Confirmed',
-      created_at: new Date().toISOString(),
-      notes,
-      estimated_amount: totalEstimatedAmount,
-      payment_method: 'Direct Venue',
-      payment_gateway: 'Manual',
-      currency: customerRegion === 'India' ? 'INR' : 'USD',
-      customer_region: customerRegion,
-      payment_status: 'Pending',
-      pg_rooms_selected: {
-        triple_rooms: tripleRoomsCount,
-        eight_person_rooms: eightPersonRoomsCount,
-      },
-    };
-
-    saveStoredBookings([fallbackBooking, ...getStoredBookings()]);
-    setSubmitting(false);
-    onSubmitSuccess(fallbackBooking);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
