@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon, Clock, User, Phone, Mail, MapPin, Heart, Users, Sparkles, AlertCircle, CheckCircle2, ShieldAlert, ShieldCheck, Check, Globe, CreditCard, Lock, X, ArrowRight, ChevronDown } from 'lucide-react';
 import { FunctionType, SpecialRequirement, Booking, AdminManualBlock } from '../types';
 import { calculateBlockedDates, checkBookingConflict, formatDisplayDate, getPreviousDay } from '../lib/bookingLogic';
+import { getStoredBookings, saveStoredBookings } from '../lib/storage';
 
 interface BookingFormProps {
   initialDate?: string;
@@ -283,22 +284,24 @@ export const BookingForm: React.FC<BookingFormProps> = ({
 
       if (res.ok) {
         const data = await res.json();
+        if (data.booking) {
+          saveStoredBookings([data.booking, ...getStoredBookings().filter(b => b.id !== data.booking.id)]);
+        }
         setSubmitting(false);
         onSubmitSuccess(data.booking);
         return;
       }
 
       const data = await res.json().catch(() => ({}));
-      if (data.error || data.conflictReason) {
-        setErrorMessage(data.error || data.conflictReason);
-        setSubmitting(false);
-        return;
-      }
+      const errText = data.error || data.conflictReason || 'Server rejected booking. Please verify details and retry.';
+      setErrorMessage(errText);
+      setSubmitting(false);
+      return;
     } catch (err: any) {
       console.warn('Network or server error, proceeding with instant local reservation confirmation:', err);
     }
 
-    // High availability client fallback confirmation
+    // High availability client fallback confirmation (for offline mode)
     const fallbackBooking: Booking = {
       id: 'bk_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
       booking_id: 'KM-' + (marriageDate ? marriageDate.replace(/-/g, '') : '20260725') + '-' + Math.floor(Math.random() * 899 + 100),
@@ -332,6 +335,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
       },
     };
 
+    saveStoredBookings([fallbackBooking, ...getStoredBookings()]);
     setSubmitting(false);
     onSubmitSuccess(fallbackBooking);
   };

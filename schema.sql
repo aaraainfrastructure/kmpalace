@@ -31,12 +31,17 @@ CREATE TABLE IF NOT EXISTS bookings (
     advance_paid_amount NUMERIC(12, 2) DEFAULT 0.00,
     payment_status VARCHAR(50) DEFAULT 'Pending',
     payment_method VARCHAR(50) DEFAULT 'UPI',
+    payment_gateway VARCHAR(50) DEFAULT 'Manual',
+    currency VARCHAR(10) DEFAULT 'INR',
+    customer_region VARCHAR(50) DEFAULT 'India',
+    pg_transaction_id VARCHAR(100),
+    pg_rooms_selected JSONB,
     booking_status VARCHAR(50) DEFAULT 'Confirmed',
     notes TEXT,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
--- Ensure optional alias columns exist on existing tables if created previously
+-- Ensure all optional & extension columns exist on existing database tables
 DO $$ 
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='name') THEN
@@ -47,6 +52,24 @@ BEGIN
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='total_amount') THEN
         ALTER TABLE bookings ADD COLUMN total_amount NUMERIC(12, 2) DEFAULT 364500.00;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='customer_address') THEN
+        ALTER TABLE bookings ADD COLUMN customer_address TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='payment_gateway') THEN
+        ALTER TABLE bookings ADD COLUMN payment_gateway VARCHAR(50) DEFAULT 'Manual';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='currency') THEN
+        ALTER TABLE bookings ADD COLUMN currency VARCHAR(10) DEFAULT 'INR';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='customer_region') THEN
+        ALTER TABLE bookings ADD COLUMN customer_region VARCHAR(50) DEFAULT 'India';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='pg_transaction_id') THEN
+        ALTER TABLE bookings ADD COLUMN pg_transaction_id VARCHAR(100);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bookings' AND column_name='pg_rooms_selected') THEN
+        ALTER TABLE bookings ADD COLUMN pg_rooms_selected JSONB;
     END IF;
 END $$;
 
@@ -91,7 +114,7 @@ FOR EACH ROW
 WHEN (NEW.booking_id IS NULL OR NEW.booking_id = '')
 EXECUTE FUNCTION generate_km_booking_id();
 
--- 6. Disable RLS or Grant Full Access for PostgREST API Sync
+-- 6. Disable RLS and Grant Full API Access for Supabase / PostgREST Sync
 ALTER TABLE bookings DISABLE ROW LEVEL SECURITY;
 ALTER TABLE admin_blocks DISABLE ROW LEVEL SECURITY;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
