@@ -312,8 +312,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     <p className="font-semibold text-[#2E2A26]">{selectedDayDetails.booking.bride_name ? `${selectedDayDetails.booking.bride_name} & ${selectedDayDetails.booking.groom_name}` : selectedDayDetails.booking.customer_name}</p>
                   </div>
                   <div>
-                    <p className="text-[#6F655B]">Muhurtham Time:</p>
-                    <p className="font-semibold text-[#9B7A46] font-num">{selectedDayDetails.booking.muhurtham_time}</p>
+                    <p className="text-[#6F655B]">Slot Timing / Muhurtham:</p>
+                    <p className="font-semibold text-[#9B7A46] font-num">
+                      {selectedDayDetails.booking.from_time || '12:00'} &rarr; {selectedDayDetails.booking.end_time || '12:00'} (Muhurtham: {selectedDayDetails.booking.muhurtham_time})
+                    </p>
                   </div>
                 </div>
 

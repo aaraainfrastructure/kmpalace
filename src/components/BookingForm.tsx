@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, Clock, User, Phone, Mail, MapPin, Heart, Users, Sparkles, AlertCircle, CheckCircle2, ShieldAlert, ShieldCheck, Check, Globe, CreditCard, Lock, X, ArrowRight, ChevronDown } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, User, Phone, Mail, MapPin, Heart, Users, Sparkles, AlertCircle, CheckCircle2, ShieldAlert, ShieldCheck, Check, Globe, CreditCard, Lock, X, ArrowRight, ChevronDown, Sun, Sunset, Moon, Sunrise, Sliders } from 'lucide-react';
 import { FunctionType, SpecialRequirement, Booking, AdminManualBlock } from '../types';
-import { calculateBlockedDates, checkBookingConflict, formatDisplayDate, getPreviousDay } from '../lib/bookingLogic';
+import { calculateBlockedDates, checkBookingConflict, formatDisplayDate, getPreviousDay, PRESET_SLOTS, SlotType, format12HourTime } from '../lib/bookingLogic';
 import { getStoredBookings, saveStoredBookings } from '../lib/storage';
 
 interface BookingFormProps {
@@ -68,7 +68,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
 
   const getInitialAvailableDate = (start: string, bookingsList: Booking[], adminBlocksList: AdminManualBlock[]) => {
     if (start && start >= todayStr) {
-      const conflict = checkBookingConflict(start, '06:00', bookingsList, adminBlocksList);
+      const conflict = checkBookingConflict(start, '24hr', bookingsList, adminBlocksList);
       if (!conflict.hasConflict) return start;
     }
     let curr = new Date(todayStr);
@@ -77,7 +77,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
       const m = String(curr.getMonth() + 1).padStart(2, '0');
       const d = String(curr.getDate()).padStart(2, '0');
       const ds = `${y}-${m}-${d}`;
-      const conflict = checkBookingConflict(ds, '06:00', bookingsList, adminBlocksList);
+      const conflict = checkBookingConflict(ds, '24hr', bookingsList, adminBlocksList);
       if (!conflict.hasConflict) return ds;
       curr.setDate(curr.getDate() + 1);
     }
@@ -93,9 +93,21 @@ export const BookingForm: React.FC<BookingFormProps> = ({
       setMarriageDate(initialDate);
     }
   }, [initialDate, todayStr]);
-  const [muhurthamTime, setMuhurthamTime] = useState('06:00');
-  const [fromTime, setFromTime] = useState('06:00');
-  const [endTime, setEndTime] = useState('22:00');
+
+  const [slotType, setSlotType] = useState<SlotType>('24hr');
+  const [muhurthamTime, setMuhurthamTime] = useState('06:00 AM');
+  const [fromTime, setFromTime] = useState('12:00');
+  const [endTime, setEndTime] = useState('12:00');
+
+  const handleSlotSelect = (selectedId: SlotType) => {
+    setSlotType(selectedId);
+    const preset = PRESET_SLOTS.find((s) => s.id === selectedId);
+    if (preset) {
+      setFromTime(preset.fromTime);
+      setEndTime(preset.endTime);
+      setMuhurthamTime(preset.defaultMuhurtham);
+    }
+  };
   const [functionType, setFunctionType] = useState<FunctionType>('Wedding');
   const [guestCount, setGuestCount] = useState<number>(600);
   const [selectedRequirements, setSelectedRequirements] = useState<SpecialRequirement[]>([
@@ -174,9 +186,25 @@ export const BookingForm: React.FC<BookingFormProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Dynamic Rule calculation
-  const { blockedDates, blockedPreviousDay } = calculateBlockedDates(marriageDate, muhurthamTime);
-  const conflictCheck = checkBookingConflict(marriageDate, muhurthamTime, existingBookings, adminBlocks);
+  // Dynamic Rule calculation with slotType
+  const { blockedDates, blockedPreviousDay } = calculateBlockedDates(
+    marriageDate,
+    slotType,
+    fromTime,
+    endTime,
+    muhurthamTime
+  );
+
+  const conflictCheck = checkBookingConflict(
+    marriageDate,
+    muhurthamTime,
+    existingBookings,
+    adminBlocks,
+    undefined,
+    slotType,
+    fromTime,
+    endTime
+  );
 
   // Booked and Maintenance dates set for visual date picker
   const bookedDatesSet = new Set<string>();
@@ -254,6 +282,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
       bride_name: brideName,
       groom_name: groomName,
       marriage_date: marriageDate,
+      slot_type: slotType,
       muhurtham_time: muhurthamTime,
       from_time: fromTime,
       end_time: endTime,
@@ -704,27 +733,82 @@ export const BookingForm: React.FC<BookingFormProps> = ({
                       </div>
                     )}
 
-                    {/* PROMOTED TIME SELECTION BANNER AFTER CHOOSING DATE */}
-                    <div className="mt-3 p-4 rounded-[18px] bg-gradient-to-r from-[rgba(245,239,230,0.95)] to-[rgba(255,255,255,0.95)] border-2 border-[rgba(199,168,109,0.5)] shadow-xs space-y-3">
-                      <div className="flex items-center space-x-2 text-[#2E2A26] font-bold text-xs sm:text-sm border-b border-[rgba(199,168,109,0.25)] pb-2">
-                        <Clock className="w-4 h-4 text-[#C7A86D]" />
-                        <span className="text-[#9B7A46] uppercase text-[10px] font-black tracking-wider bg-[rgba(199,168,109,0.2)] px-2 py-0.5 rounded-full">Step 2: Time Selection (24hrs Format)</span>
-                        <span>Choose Event Slot Timing</span>
+                    {/* PROMOTED TIME SELECTION BANNER & INTERACTIVE SLOT SELECTOR */}
+                    <div className="mt-3 p-4 rounded-[18px] bg-gradient-to-r from-[rgba(245,239,230,0.95)] to-[rgba(255,255,255,0.95)] border-2 border-[rgba(199,168,109,0.5)] shadow-xs space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[rgba(199,168,109,0.25)] pb-3">
+                        <div className="flex items-center space-x-2 text-[#2E2A26] font-bold text-xs sm:text-sm">
+                          <Clock className="w-4 h-4 text-[#C7A86D]" />
+                          <span className="text-[#9B7A46] uppercase text-[10px] font-black tracking-wider bg-[rgba(199,168,109,0.2)] px-2 py-0.5 rounded-full">Step 2: Choose Slot Timing</span>
+                          <span>Event Duration & Slot Packages</span>
+                        </div>
+                        <span className="text-[11px] font-semibold text-[#8C6D3B]">
+                          Flexible same-day & 24hr slots supported
+                        </span>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {/* Interactive Slot Preset Cards */}
+                      <div>
+                        <label className="block text-xs font-bold text-[#2E2A26] mb-2 uppercase tracking-wider">
+                          Select Preferred Time Slot Package <span className="text-[#C7A86D]">*</span>
+                        </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                          {PRESET_SLOTS.map((slot) => {
+                            const isSelected = slotType === slot.id;
+                            const IconComp = slot.id === '24hr' ? Moon : slot.id === 'morning' ? Sunrise : slot.id === 'evening' ? Sunset : slot.id === 'fullday' ? Sun : Sliders;
+
+                            return (
+                              <button
+                                key={slot.id}
+                                type="button"
+                                onClick={() => handleSlotSelect(slot.id)}
+                                className={`p-3 rounded-[14px] text-left transition-all cursor-pointer border flex flex-col justify-between relative ${
+                                  isSelected
+                                    ? 'bg-gradient-to-br from-[#2E2A26] to-[#1A1816] text-white border-[#C7A86D] shadow-md ring-2 ring-[#C7A86D]/40 scale-[1.02]'
+                                    : 'bg-white text-[#2E2A26] border-[rgba(199,168,109,0.35)] hover:border-[#C7A86D] hover:bg-[#F9F6F0]'
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-1 mb-1.5">
+                                  <div className="flex items-center space-x-1.5">
+                                    <IconComp className={`w-4 h-4 ${isSelected ? 'text-[#C7A86D]' : 'text-[#8C6D3B]'}`} />
+                                    <span className="font-serif font-bold text-xs sm:text-sm">{slot.name}</span>
+                                  </div>
+                                  <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider shrink-0 ${
+                                    isSelected ? 'bg-[#C7A86D] text-[#1A1816]' : 'bg-[rgba(199,168,109,0.2)] text-[#8C6D3B]'
+                                  }`}>
+                                    {slot.badge}
+                                  </span>
+                                </div>
+
+                                <div className={`text-[11px] font-bold font-num mb-1 ${isSelected ? 'text-[#E8D1A7]' : 'text-[#8C6D3B]'}`}>
+                                  {format12HourTime(slot.fromTime)} &rarr; {format12HourTime(slot.endTime)}
+                                </div>
+
+                                <p className={`text-[10px] leading-tight ${isSelected ? 'text-gray-300' : 'text-[#6F655B]'}`}>
+                                  {slot.description}
+                                </p>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Precise Time Selectors */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-[rgba(199,168,109,0.2)]">
                         <div>
                           <label className="block text-xs font-semibold text-[#2E2A26] mb-1">
-                            Check-In Time (24hrs) <span className="text-[#C7A86D]">*</span>
+                            Check-In Time <span className="text-[#C7A86D]">*</span>
                           </label>
                           <select
                             value={fromTime}
-                            onChange={(e) => setFromTime(e.target.value)}
+                            onChange={(e) => {
+                              setFromTime(e.target.value);
+                              setSlotType('custom');
+                            }}
                             className="w-full px-3 py-2.5 rounded-[12px] border border-[rgba(199,168,109,0.4)] bg-white font-bold text-sm text-[#2E2A26] focus:border-[#C7A86D] focus:outline-none transition-all cursor-pointer font-num"
                           >
                             {TIMES_24HR_CHECKIN.map((t) => (
                               <option key={t} value={t}>
-                                {t} ({t < '12:00' ? `${t} AM` : t === '12:00' ? '12:00 PM (Noon)' : `${String(parseInt(t.split(':')[0]) - 12).padStart(2, '0')}:${t.split(':')[1]} PM`})
+                                {t} ({format12HourTime(t)})
                               </option>
                             ))}
                           </select>
@@ -732,16 +816,19 @@ export const BookingForm: React.FC<BookingFormProps> = ({
 
                         <div>
                           <label className="block text-xs font-semibold text-[#2E2A26] mb-1">
-                            Check-Out Time (24hrs) <span className="text-[#C7A86D]">*</span>
+                            Check-Out Time <span className="text-[#C7A86D]">*</span>
                           </label>
                           <select
                             value={endTime}
-                            onChange={(e) => setEndTime(e.target.value)}
+                            onChange={(e) => {
+                              setEndTime(e.target.value);
+                              setSlotType('custom');
+                            }}
                             className="w-full px-3 py-2.5 rounded-[12px] border border-[rgba(199,168,109,0.4)] bg-white font-bold text-sm text-[#2E2A26] focus:border-[#C7A86D] focus:outline-none transition-all cursor-pointer font-num"
                           >
                             {TIMES_24HR_CHECKOUT.map((t) => (
                               <option key={t} value={t}>
-                                {t} ({t === '00:00' ? '00:00 Midnight' : t < '12:00' ? `${t} AM` : t === '12:00' ? '12:00 PM (Noon)' : `${String(parseInt(t.split(':')[0]) - 12).padStart(2, '0')}:${t.split(':')[1]} PM`})
+                                {t} ({format12HourTime(t)})
                               </option>
                             ))}
                           </select>
@@ -749,28 +836,29 @@ export const BookingForm: React.FC<BookingFormProps> = ({
 
                         <div>
                           <label className="block text-xs font-semibold text-[#2E2A26] mb-1">
-                            Auspicious Muhurtham Time (24hrs) <span className="text-[#C7A86D]">*</span>
+                            Auspicious Muhurtham Time <span className="text-[#C7A86D]">*</span>
                           </label>
                           <select
                             value={muhurthamTime}
                             onChange={(e) => {
                               setMuhurthamTime(e.target.value);
-                              if (fromTime === '06:00') setFromTime(e.target.value);
                             }}
                             className="w-full px-3 py-2.5 rounded-[12px] border border-[rgba(199,168,109,0.4)] bg-white font-bold text-sm text-[#2E2A26] focus:border-[#C7A86D] focus:outline-none transition-all cursor-pointer font-num"
                           >
                             {TIMES_24HR_MUHURTHAM.map((t) => (
                               <option key={t} value={t}>
-                                {t} ({t < '12:00' ? `${t} AM` : t === '12:00' ? '12:00 PM (Noon)' : `${String(parseInt(t.split(':')[0]) - 12).padStart(2, '0')}:${t.split(':')[1]} PM`})
+                                {t} ({format12HourTime(t)})
                               </option>
                             ))}
                           </select>
                         </div>
                       </div>
 
-                      <div className="p-2.5 rounded-[12px] bg-white/80 border border-[rgba(199,168,109,0.2)] text-[11px] text-[#6F655B] flex flex-wrap items-center justify-between font-num gap-2">
-                        <span>Selected Slot: <strong className="text-[#2E2A26]">{fromTime}</strong> to <strong className="text-[#2E2A26]">{endTime}</strong> (24hrs format)</span>
-                        <span className="text-[#9B7A46] font-semibold">Standard 24hr slot: 12:00 Day 1 → 12:00 Day 2</span>
+                      <div className="p-2.5 rounded-[12px] bg-white/90 border border-[rgba(199,168,109,0.3)] text-[11px] text-[#6F655B] flex flex-wrap items-center justify-between font-num gap-2">
+                        <span>Selected Slot Timing: <strong className="text-[#2E2A26]">{format12HourTime(fromTime)}</strong> to <strong className="text-[#2E2A26]">{format12HourTime(endTime)}</strong></span>
+                        <span className="text-[#9B7A46] font-bold">
+                          Reserved Dates: {blockedDates.map(formatDisplayDate).join(' & ')}
+                        </span>
                       </div>
                     </div>
                   </>
@@ -782,31 +870,31 @@ export const BookingForm: React.FC<BookingFormProps> = ({
           {/* DYNAMIC SMART MUHURTHAM RULE STATUS BOX */}
           <div className={`p-4 rounded-[18px] border transition-all ${
             conflictCheck.hasConflict
-              ? 'bg-[rgba(245,239,230,0.9)] border-[rgba(199,168,109,0.6)] text-[#2E2A26]'
+              ? 'bg-rose-50/90 border-rose-300 text-rose-950'
               : blockedPreviousDay
               ? 'bg-[rgba(245,239,230,0.8)] border-[rgba(199,168,109,0.4)] text-[#2E2A26]'
-              : 'bg-[rgba(255,255,255,0.8)] border-[rgba(125,155,106,0.35)] text-[#2E2A26]'
+              : 'bg-emerald-50/90 border-emerald-300 text-emerald-950'
           }`}>
             <div className="flex items-start space-x-3">
               {conflictCheck.hasConflict ? (
-                <ShieldAlert className="w-6 h-6 text-[#C7A86D] shrink-0 mt-0.5" />
+                <ShieldAlert className="w-6 h-6 text-rose-600 shrink-0 mt-0.5 animate-pulse" />
               ) : blockedPreviousDay ? (
                 <AlertCircle className="w-6 h-6 text-[#C7A86D] shrink-0 mt-0.5" />
               ) : (
-                <CheckCircle2 className="w-6 h-6 text-[#7D9B6A] shrink-0 mt-0.5" />
+                <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0 mt-0.5" />
               )}
 
               <div className="space-y-1 text-xs">
                 {conflictCheck.hasConflict ? (
                   <>
-                    <p className="font-bold text-sm text-[#2E2A26]">
-                      ⚠️ Booking Conflict Detected!
+                    <p className="font-bold text-sm text-rose-900">
+                      ⚠️ Booking Slot Unavailable!
                     </p>
-                    <p className="font-medium text-[#6F655B]">
+                    <p className="font-semibold text-rose-800">
                       {conflictCheck.conflictReason}
                     </p>
-                    <p className="text-[11px] font-semibold text-[#9B7A46] pt-1">
-                      Please select a different date or time on the calendar.
+                    <p className="text-[11px] font-medium text-rose-700 pt-1">
+                      💡 Tip: You can select a different time slot (e.g. Evening Reception instead of Morning Muhurtham) or pick another date from the calendar.
                     </p>
                   </>
                 ) : blockedPreviousDay ? (
@@ -823,7 +911,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
                       Muhurtham is set at <strong className="text-[#2E2A26]">{muhurthamTime}</strong> on <strong className="text-[#2E2A26] font-num">{formatDisplayDate(marriageDate)}</strong>.
                     </p>
                     <p className="font-semibold text-[#9B7A46] pt-0.5">
-                      🔒 Hall will be automatically blocked for BOTH dates: <span className="underline font-num">{formatDisplayDate(getPreviousDay(marriageDate))}</span> AND <span className="underline font-num">{formatDisplayDate(marriageDate)}</span>.
+                      🔒 Hall will be automatically reserved for BOTH dates: <span className="underline font-num">{formatDisplayDate(getPreviousDay(marriageDate))}</span> AND <span className="underline font-num">{formatDisplayDate(marriageDate)}</span>.
                     </p>
                     <p className="text-[11px] text-[#7D9B6A] font-medium mt-1">
                       🟢 Status: Both dates are available! Submitting will reserve both dates exclusively for your event.
@@ -831,11 +919,11 @@ export const BookingForm: React.FC<BookingFormProps> = ({
                   </>
                 ) : (
                   <>
-                    <p className="font-bold text-sm text-[#7D9B6A]">
-                      🟢 Hall Available for Selected Date
+                    <p className="font-bold text-sm text-emerald-900">
+                      🟢 Slot Available for Selected Date ({formatDisplayDate(marriageDate)})
                     </p>
-                    <p className="text-[#6F655B]">
-                      Standard booking slot (12 PM → Next Day 12 PM) applies. Blocked Date: <strong className="text-[#2E2A26] font-num">{formatDisplayDate(marriageDate)}</strong>.
+                    <p className="text-emerald-800 font-medium">
+                      Slot: <strong className="font-num">{format12HourTime(fromTime)}</strong> to <strong className="font-num">{format12HourTime(endTime)}</strong>. Reserved Dates: <strong className="font-num">{blockedDates.map(formatDisplayDate).join(' & ')}</strong>.
                     </p>
                   </>
                 )}

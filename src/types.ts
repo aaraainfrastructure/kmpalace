@@ -26,6 +26,7 @@ export interface Booking {
   bride_name: string;
   groom_name: string;
   marriage_date: string; // YYYY-MM-DD
+  slot_type?: '24hr' | 'morning' | 'evening' | 'fullday' | 'custom';
   muhurtham_time: string; // e.g., "06:00 AM" or "06:00"
   from_time?: string; // e.g. "06:00 AM" or "08:00 AM"
   end_time?: string; // e.g. "10:00 PM" or "11:30 PM"

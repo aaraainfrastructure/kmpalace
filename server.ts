@@ -5,7 +5,7 @@ import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import { createClient } from '@supabase/supabase-js';
 import { Booking, AdminManualBlock } from './src/types';
-import { calculateBlockedDates, checkBookingConflict, generateBookingId, formatDisplayDate } from './src/lib/bookingLogic';
+import { calculateBlockedDates, checkBookingConflict, generateBookingId, formatDisplayDate, SlotType } from './src/lib/bookingLogic';
 
 // Supabase Cloud Storage Client
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://htlgfpfmjuneswmqpxfw.supabase.co';
@@ -109,35 +109,51 @@ async function loadDataWithSupabase(): Promise<ServerData> {
   try {
     const { data: dbBookings, error: bErr } = await supabase.from('bookings').select('*').order('created_at', { ascending: false });
     if (!bErr && Array.isArray(dbBookings) && dbBookings.length > 0) {
-      localData.bookings = dbBookings.map((b: any) => ({
-        id: b.id || 'bk_' + Date.now(),
-        booking_id: b.booking_id || 'KM-2026-001',
-        customer_name: b.customer_name || b.name || 'Valued Guest',
-        phone: b.phone || '',
-        email: b.email || '',
-        bride_name: b.bride_name || '',
-        groom_name: b.groom_name || '',
-        marriage_date: b.marriage_date || b.booking_date || new Date().toISOString().split('T')[0],
-        muhurtham_time: b.muhurtham_time || '06:00 AM',
-        from_time: b.from_time || b.muhurtham_time || '06:00 AM',
-        end_time: b.end_time || '10:00 PM',
-        function_type: b.function_type || 'Wedding',
-        guest_count: b.guest_count || 500,
-        requirements: Array.isArray(b.requirements) ? b.requirements : [],
-        blocked_previous_day: b.blocked_previous_day ?? false,
-        blocked_dates: Array.isArray(b.blocked_dates) ? b.blocked_dates : [b.marriage_date || b.booking_date],
-        booking_status: b.booking_status || 'Confirmed',
-        created_at: b.created_at || new Date().toISOString(),
-        notes: b.notes || '',
-        estimated_amount: b.estimated_amount || b.total_amount || 364500,
-        payment_method: b.payment_method || 'UPI',
-        payment_gateway: b.payment_gateway || 'Manual',
-        currency: b.currency || 'INR',
-        customer_region: b.customer_region || 'India',
-        payment_status: b.payment_status || 'Pending',
-        advance_paid_amount: b.advance_paid_amount || 0,
-        pg_rooms_selected: b.pg_rooms_selected || undefined,
-      }));
+      const fetchedMap = new Map<string, Booking>();
+      dbBookings.forEach((b: any) => {
+        const mapped: Booking = {
+          id: b.id || 'bk_' + Date.now(),
+          booking_id: b.booking_id || 'KM-2026-001',
+          customer_name: b.customer_name || b.name || 'Valued Guest',
+          phone: b.phone || '',
+          email: b.email || '',
+          bride_name: b.bride_name || '',
+          groom_name: b.groom_name || '',
+          marriage_date: b.marriage_date || b.booking_date || new Date().toISOString().split('T')[0],
+          slot_type: (b.slot_type || (b.from_time === '04:00' ? 'morning' : b.from_time === '16:00' ? 'evening' : b.from_time === '06:00' ? 'fullday' : '24hr')) as SlotType,
+          muhurtham_time: b.muhurtham_time || '06:00 AM',
+          from_time: b.from_time || b.muhurtham_time || '06:00 AM',
+          end_time: b.end_time || '10:00 PM',
+          function_type: b.function_type || 'Wedding',
+          guest_count: b.guest_count || 500,
+          requirements: Array.isArray(b.requirements) ? b.requirements : [],
+          blocked_previous_day: b.blocked_previous_day ?? false,
+          blocked_dates: Array.isArray(b.blocked_dates) ? b.blocked_dates : [b.marriage_date || b.booking_date],
+          booking_status: b.booking_status || 'Confirmed',
+          created_at: b.created_at || new Date().toISOString(),
+          notes: b.notes || '',
+          estimated_amount: b.estimated_amount || b.total_amount || 364500,
+          payment_method: b.payment_method || 'UPI',
+          payment_gateway: b.payment_gateway || 'Manual',
+          currency: b.currency || 'INR',
+          customer_region: b.customer_region || 'India',
+          payment_status: b.payment_status || 'Pending',
+          advance_paid_amount: b.advance_paid_amount || 0,
+          pg_rooms_selected: b.pg_rooms_selected || undefined,
+        };
+        fetchedMap.set(mapped.id, mapped);
+      });
+
+      // Preserve local bookings so new or un-synced entries are never lost
+      localData.bookings.forEach((localB) => {
+        if (!fetchedMap.has(localB.id)) {
+          fetchedMap.set(localB.id, localB);
+        }
+      });
+
+      localData.bookings = Array.from(fetchedMap.values()).sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
     }
     const { data: dbBlocks, error: blErr } = await supabase.from('admin_blocks').select('*');
     if (!blErr && Array.isArray(dbBlocks)) {
@@ -151,7 +167,7 @@ async function loadDataWithSupabase(): Promise<ServerData> {
 
 async function saveBookingToSupabase(booking: Booking) {
   try {
-    const payload = {
+    const payload: any = {
       id: booking.id,
       booking_id: booking.booking_id,
       customer_name: booking.customer_name,
@@ -161,6 +177,7 @@ async function saveBookingToSupabase(booking: Booking) {
       bride_name: booking.bride_name || '',
       groom_name: booking.groom_name || '',
       marriage_date: booking.marriage_date,
+      slot_type: booking.slot_type || '24hr',
       muhurtham_time: booking.muhurtham_time,
       from_time: booking.from_time,
       end_time: booking.end_time,
@@ -186,11 +203,13 @@ async function saveBookingToSupabase(booking: Booking) {
     const { error } = await supabase.from('bookings').upsert([payload], { onConflict: 'id' });
     if (error) {
       console.warn('[Supabase Upsert Warning]:', error.message || error);
-      const { error: insError } = await supabase.from('bookings').insert([payload]);
-      if (insError) {
-        console.warn('[Supabase Direct Insert Warning]:', insError.message || insError);
+      // Retry without slot_type if schema cache missing column
+      delete payload.slot_type;
+      const { error: retryError } = await supabase.from('bookings').upsert([payload], { onConflict: 'id' });
+      if (retryError) {
+        console.warn('[Supabase Fallback Upsert Warning]:', retryError.message || retryError);
       } else {
-        console.log(`[Supabase Direct Insert Success] Booking ${booking.booking_id} saved.`);
+        console.log(`[Supabase Fallback Upsert Success] Booking ${booking.booking_id} saved.`);
       }
     } else {
       console.log(`[Supabase Upsert Success] Booking ${booking.booking_id} saved to database.`);
@@ -910,10 +929,13 @@ app.post('/api/bookings', async (req: Request, res: Response) => {
     const emailVal = (email || '').toString().trim();
     const marriageDateVal = (marriage_date || req.body.marriageDate || '').toString().trim();
     const muhurthamTimeVal = (muhurtham_time || req.body.muhurthamTime || '').toString().trim();
+    const slotTypeVal = (req.body.slot_type || req.body.slotType || '24hr') as SlotType;
+    const fromTimeVal = (from_time || req.body.fromTime || '').toString().trim();
+    const endTimeVal = (end_time || req.body.endTime || '').toString().trim();
 
     // Server-side validations
-    if (!customerNameVal || !phoneVal || !emailVal || !marriageDateVal || !muhurthamTimeVal) {
-      return res.status(400).json({ error: 'Please complete all required fields (Customer Name, Phone, Email, Marriage Date, Muhurtham Time).' });
+    if (!customerNameVal || !phoneVal || !emailVal || !marriageDateVal) {
+      return res.status(400).json({ error: 'Please complete all required fields (Customer Name, Phone, Email, Marriage Date).' });
     }
 
     const data = await loadDataWithSupabase();
@@ -921,21 +943,31 @@ app.post('/api/bookings', async (req: Request, res: Response) => {
     // Check conflict
     const { hasConflict, conflictReason, conflictingDates } = checkBookingConflict(
       marriageDateVal,
-      muhurthamTimeVal,
+      muhurthamTimeVal || '06:00 AM',
       data.bookings,
-      data.adminBlocks
+      data.adminBlocks,
+      undefined,
+      slotTypeVal,
+      fromTimeVal,
+      endTimeVal
     );
 
     if (hasConflict) {
       return res.status(409).json({
-        error: 'Hall already booked. Please choose another date.',
+        error: 'Hall already booked. Please choose another date or slot.',
         conflictReason,
         conflictingDates,
       });
     }
 
     // Calculate dates to block
-    const { blockedDates, blockedPreviousDay } = calculateBlockedDates(marriageDateVal, muhurthamTimeVal);
+    const { blockedDates, blockedPreviousDay } = calculateBlockedDates(
+      marriageDateVal,
+      slotTypeVal,
+      fromTimeVal,
+      endTimeVal,
+      muhurthamTimeVal
+    );
 
     // Generate unique reference ID like KM-20260729-001
     let seq = data.nextSequence || (data.bookings.length + 1);
@@ -945,6 +977,9 @@ app.post('/api/bookings', async (req: Request, res: Response) => {
       candidateBookingId = generateBookingId(seq);
     }
     const booking_id = candidateBookingId;
+
+    const defaultFrom = slotTypeVal === '24hr' ? '12:00' : slotTypeVal === 'morning' ? '04:00' : slotTypeVal === 'evening' ? '16:00' : '06:00';
+    const defaultEnd = slotTypeVal === '24hr' ? '12:00' : slotTypeVal === 'morning' ? '12:00' : slotTypeVal === 'evening' ? '23:00' : '22:00';
 
     const newBooking: Booking = {
       id: 'bk_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
@@ -956,9 +991,10 @@ app.post('/api/bookings', async (req: Request, res: Response) => {
       bride_name: brideNameVal,
       groom_name: groomNameVal,
       marriage_date: marriageDateVal,
-      muhurtham_time: muhurthamTimeVal,
-      from_time: from_time || muhurthamTimeVal || '06:00',
-      end_time: end_time || '22:00',
+      slot_type: slotTypeVal,
+      muhurtham_time: muhurthamTimeVal || '06:00 AM',
+      from_time: fromTimeVal || defaultFrom,
+      end_time: endTimeVal || defaultEnd,
       function_type: function_type || 'Wedding',
       guest_count: Number(guest_count) || 0,
       requirements: Array.isArray(requirements) ? requirements : [],
