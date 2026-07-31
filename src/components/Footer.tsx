@@ -66,8 +66,8 @@ export const Footer: React.FC<FooterProps> = ({
             </p>
             <ul className="space-y-1.5 text-[#6F655B]">
               <li>
-                <button onClick={onOpenBooking} className="hover:text-[#2E2A26] transition-colors cursor-pointer">
-                  Book via kmpalace.com
+                <button onClick={onOpenAdmin} className="hover:text-[#2E2A26] font-bold text-[#7A0019] transition-colors cursor-pointer">
+                  Admin Portal (Booking Entry)
                 </button>
               </li>
               <li>

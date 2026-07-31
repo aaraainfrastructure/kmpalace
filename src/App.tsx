@@ -344,40 +344,51 @@ export default function App() {
           {/* Luxury Testimonials & Social Proof */}
           <TestimonialsSection />
 
-          {/* Booking Form Section */}
-          <section ref={bookingFormRef} className="py-16 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <BookingForm
-              initialDate={selectedBookingDate}
-              existingBookings={bookings}
-              adminBlocks={adminBlocks}
-              onSubmitSuccess={handleBookingSubmitSuccess}
-            />
-          </section>
+          {/* Availability Calendar Section (Public Home View) */}
+          <section ref={calendarRef} id="calendar-section" className="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="bg-white/90 backdrop-blur-md rounded-[28px] border border-[rgba(199,168,109,0.35)] p-6 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.05)] space-y-6">
+              
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-6 border-b border-[rgba(199,168,109,0.25)]">
+                <div>
+                  <div className="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-[rgba(245,239,230,0.8)] border border-[rgba(199,168,109,0.35)] text-xs font-semibold text-[#9B7A46] mb-2">
+                    <Calendar className="w-3.5 h-3.5 text-[#C7A86D]" />
+                    <span>Real-Time Hall Availability</span>
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl font-serif font-bold text-[#2E2A26]">
+                    Hall Date Availability Calendar
+                  </h2>
+                  <p className="text-xs sm:text-sm text-[#6F655B] mt-1">
+                    Check open & booked wedding dates below. For official hall reservations, please contact Manager Kannan at <a href="tel:+919159277277" className="font-bold text-[#7A0019] hover:underline">+91 9159277277</a> or via <a href="https://wa.me/919159277277?text=Hello%20KM%20Palace%20Team%2C%20I%20want%20to%20check%20hall%20availability." target="_blank" rel="noreferrer" className="font-bold text-[#5E7A4E] hover:underline">WhatsApp Enquiry</a>.
+                  </p>
+                </div>
 
-          {/* Interactive Monthly Calendar Preview (Hidden by default, shown on click) */}
-          <section ref={calendarRef} className="py-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center">
-              <button
-                type="button"
-                onClick={() => setShowCalendarSection(!showCalendarSection)}
-                className="inline-flex items-center space-x-2.5 px-6 py-3.5 rounded-full bg-white/95 border border-[rgba(199,168,109,0.4)] shadow-md text-[#2E2A26] font-serif font-bold text-sm sm:text-base hover:border-[#C7A86D] hover:bg-[#F5EFE6] transition-all cursor-pointer group"
-              >
-                <Calendar className="w-5 h-5 text-[#C7A86D]" />
-                <span>{showCalendarSection ? 'Hide Availability Calendar' : '📅 View Availability Calendar (Click to Show)'}</span>
-                <ChevronDown className={`w-4 h-4 text-[#C7A86D] transition-transform duration-300 ${showCalendarSection ? 'rotate-180' : ''}`} />
-              </button>
-            </div>
+                <div className="flex items-center space-x-2 w-full md:w-auto">
+                  <a
+                    href="https://wa.me/919159277277?text=Hello%20KM%20Palace%20Team%2C%20I%20want%20to%20check%20hall%20availability."
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex-1 md:flex-initial px-5 py-2.5 rounded-full bg-[#5E7A4E] hover:bg-[#4d6540] text-white font-bold text-xs flex items-center justify-center space-x-2 transition-all shadow-xs"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    <span>WhatsApp Booking Enquiry</span>
+                  </a>
 
-            {showCalendarSection && (
-              <div className="mt-8 transition-all duration-300">
-                <CalendarView
-                  bookings={bookings}
-                  adminBlocks={adminBlocks}
-                  onSelectDateToBook={(dateStr) => handleOpenBooking(dateStr)}
-                  onDeleteAdminBlock={handleDeleteAdminBlock}
-                />
+                  <button
+                    onClick={handleOpenAdmin}
+                    className="px-4 py-2.5 rounded-full bg-[#7A0019] hover:bg-[#600013] text-[#D4AF37] font-bold text-xs transition-all cursor-pointer shadow-xs whitespace-nowrap"
+                  >
+                    Admin Portal Login
+                  </button>
+                </div>
               </div>
-            )}
+
+              <CalendarView
+                bookings={bookings}
+                adminBlocks={adminBlocks}
+                onSelectDateToBook={(dateStr) => handleOpenBooking(dateStr)}
+                onDeleteAdminBlock={handleDeleteAdminBlock}
+              />
+            </div>
           </section>
 
           {/* Location & Directions */}

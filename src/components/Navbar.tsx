@@ -123,10 +123,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             </a>
 
             <button
-              onClick={() => onOpenBooking()}
-              className="btn-gold px-5 text-xs font-semibold uppercase tracking-wider cursor-pointer"
+              onClick={() => onOpenCalendar()}
+              className="btn-gold px-5 text-xs font-semibold uppercase tracking-wider cursor-pointer flex items-center space-x-1.5"
             >
-              Reserve Hall
+              <Calendar className="w-3.5 h-3.5" />
+              <span>Check Availability</span>
             </button>
           </div>
 
@@ -146,10 +147,11 @@ export const Navbar: React.FC<NavbarProps> = ({
       {mobileMenuOpen && (
         <div className="md:hidden mt-2 mx-auto max-w-7xl rounded-3xl bg-[rgba(255,255,255,0.92)] backdrop-blur-2xl border border-[rgba(199,168,109,0.3)] p-5 space-y-3 shadow-xl">
           <button
-            onClick={() => { setMobileMenuOpen(false); onOpenBooking(); }}
-            className="w-full text-left py-2.5 px-4 rounded-xl bg-[rgba(232,216,176,0.4)] font-semibold text-[#2E2A26] border border-[#C7A86D]/40"
+            onClick={() => { setMobileMenuOpen(false); onOpenCalendar(); }}
+            className="w-full text-left py-2.5 px-4 rounded-xl bg-[rgba(232,216,176,0.4)] font-semibold text-[#2E2A26] border border-[#C7A86D]/40 flex items-center space-x-2"
           >
-            🏰 Reserve Marriage Hall
+            <Calendar className="w-4 h-4 text-[#C7A86D]" />
+            <span>📅 Check Availability Calendar</span>
           </button>
           <button
             onClick={() => { setMobileMenuOpen(false); onOpenCalendar(); }}

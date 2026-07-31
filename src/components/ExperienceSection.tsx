@@ -168,7 +168,7 @@ export const ExperienceSection: React.FC<ExperienceProps> = ({ onBookNow }) => {
               onClick={onBookNow}
               className="btn-gold px-6 py-3 rounded-[16px] text-xs font-bold uppercase tracking-widest cursor-pointer shadow-lg"
             >
-              Book via kmpalace.com
+              Check Date Availability
             </button>
           </div>
         </div>

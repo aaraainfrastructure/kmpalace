@@ -115,20 +115,22 @@ export const Hero: React.FC<HeroProps> = ({ onBookNow, onViewCalendar }) => {
           {/* Action CTAs */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 pt-1">
             <button
-              onClick={onBookNow}
+              onClick={onViewCalendar}
               className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-gradient-to-r from-[#D4AF37] via-[#C7A86D] to-[#B89755] text-[#0D0C0A] font-bold text-xs uppercase tracking-[0.2em] hover:brightness-110 transition-all shadow-[0_10px_30px_rgba(212,175,55,0.3)] hover:scale-105 cursor-pointer flex items-center justify-center space-x-2.5"
             >
-              <Sparkles className="w-4 h-4 fill-[#0D0C0A]" />
-              <span>Book Reservation</span>
+              <Calendar className="w-4 h-4 text-[#0D0C0A]" />
+              <span>Check Availability Calendar</span>
             </button>
 
-            <button
-              onClick={onViewCalendar}
+            <a
+              href="https://wa.me/919159277277?text=Hello%20KM%20Palace%20Team%2C%20I%20want%20to%20enquire%20about%20booking%20availability."
+              target="_blank"
+              rel="noreferrer"
               className="w-full sm:w-auto px-7 py-3.5 rounded-full bg-[#1A1917]/90 hover:bg-[#2A2824] border border-[#D4AF37]/50 text-[#FCFBF7] font-semibold text-xs uppercase tracking-[0.2em] transition-all backdrop-blur-md cursor-pointer flex items-center justify-center space-x-2 hover:border-[#D4AF37]"
             >
-              <Calendar className="w-4 h-4 text-[#D4AF37]" />
-              <span>Check Real-Time Dates</span>
-            </button>
+              <Sparkles className="w-4 h-4 text-[#D4AF37]" />
+              <span>WhatsApp Booking Enquiry</span>
+            </a>
 
             <button
               onClick={scrollToTariff}

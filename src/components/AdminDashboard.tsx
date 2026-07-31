@@ -3,6 +3,7 @@ import { ShieldCheck, Lock, Search, Filter, Download, Trash2, Edit3, Plus, Dolla
 import { Booking, AdminManualBlock, BookingStatus, FunctionType, SpecialRequirement } from '../types';
 import { formatDisplayDate, calculateBlockedDates } from '../lib/bookingLogic';
 import { exportToExcel, printBookingReceipt } from '../lib/exportUtils';
+import { BookingForm } from './BookingForm';
 
 interface AdminDashboardProps {
   bookings: Booking[];
@@ -34,8 +35,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [filterType, setFilterType] = useState<string>('ALL');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
 
-  // Admin Active Tab (Bookings vs Blocked Dates Manager)
-  const [adminActiveTab, setAdminActiveTab] = useState<'bookings' | 'blocked_dates'>('bookings');
+  // Admin Active Tab (Bookings vs Blocked Dates Manager vs Create Booking)
+  const [adminActiveTab, setAdminActiveTab] = useState<'bookings' | 'blocked_dates' | 'create_booking'>('bookings');
 
   // Block Removal & Management state
   const [selectedBlocksForDeletion, setSelectedBlocksForDeletion] = useState<string[]>([]);
@@ -398,7 +399,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       {/* SUB NAVIGATION TABS */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[rgba(199,168,109,0.25)] pb-3">
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setAdminActiveTab('create_booking')}
+            className={`px-5 py-2.5 rounded-[14px] text-xs font-semibold flex items-center space-x-2 transition-all cursor-pointer ${
+              adminActiveTab === 'create_booking'
+                ? 'bg-[#7A0019] text-[#D4AF37] shadow-md ring-2 ring-[#C7A86D]'
+                : 'bg-[#7A0019]/10 text-[#7A0019] hover:bg-[#7A0019]/20 border border-[rgba(122,0,25,0.3)] font-bold'
+            }`}
+          >
+            <Plus className="w-4 h-4 text-[#C7A86D]" />
+            <span>➕ Create New Booking</span>
+          </button>
+
           <button
             type="button"
             onClick={() => setAdminActiveTab('bookings')}
@@ -437,6 +451,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </button>
         )}
       </div>
+
+      {/* CREATE NEW BOOKING TAB */}
+      {adminActiveTab === 'create_booking' && (
+        <div className="space-y-6 animate-fadeIn">
+          <div className="bg-gradient-to-r from-[rgba(245,239,230,0.9)] to-white p-6 rounded-[20px] border border-[rgba(199,168,109,0.35)] shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-[#7A0019]/10 border border-[#7A0019]/30 text-[#7A0019] text-[11px] font-bold uppercase tracking-wider mb-2">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#7A0019]" />
+                <span>Admin Booking Entry System</span>
+              </div>
+              <h3 className="text-xl font-serif font-bold text-[#2E2A26]">Create & Confirm Official Booking</h3>
+              <p className="text-xs text-[#6F655B] mt-1">
+                Enter reservation details below. Submitting will register the booking and automatically dispatch the confirmation receipt to <strong className="text-[#2E2A26]">Kannan.d26@gmail.com</strong>.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAdminActiveTab('bookings')}
+              className="px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-semibold text-xs transition-all cursor-pointer shadow-2xs"
+            >
+              ← View All Bookings
+            </button>
+          </div>
+
+          <BookingForm
+            existingBookings={bookings}
+            adminBlocks={adminBlocks}
+            onSubmitSuccess={(newBooking) => {
+              onRefreshData();
+              setAdminActiveTab('bookings');
+            }}
+          />
+        </div>
+      )}
 
       {/* SEARCH AND FILTERS (BOOKINGS TAB) */}
       {adminActiveTab === 'bookings' && (
