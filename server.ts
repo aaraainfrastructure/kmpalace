@@ -80,19 +80,28 @@ const DEFAULT_SERVER_DATA: ServerData = {
 
 function loadServerData(): ServerData {
   try {
+    let parsed: any = null;
     if (fs.existsSync(DATA_FILE)) {
       const raw = fs.readFileSync(DATA_FILE, 'utf-8');
-      return JSON.parse(raw);
+      parsed = JSON.parse(raw);
+    } else {
+      const rootDataFile = path.join(process.cwd(), 'km_palace_data.json');
+      if (fs.existsSync(rootDataFile)) {
+        const raw = fs.readFileSync(rootDataFile, 'utf-8');
+        parsed = JSON.parse(raw);
+      }
     }
-    const rootDataFile = path.join(process.cwd(), 'km_palace_data.json');
-    if (fs.existsSync(rootDataFile)) {
-      const raw = fs.readFileSync(rootDataFile, 'utf-8');
-      return JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') {
+      return {
+        bookings: Array.isArray(parsed.bookings) ? parsed.bookings : [],
+        adminBlocks: Array.isArray(parsed.adminBlocks) ? parsed.adminBlocks : [],
+        nextSequence: typeof parsed.nextSequence === 'number' ? parsed.nextSequence : 1,
+      };
     }
   } catch (err) {
     console.error('Error reading server data file:', err);
   }
-  return DEFAULT_SERVER_DATA;
+  return { bookings: [], adminBlocks: [], nextSequence: 1 };
 }
 
 function saveServerData(data: ServerData) {
@@ -442,15 +451,15 @@ async function sendBookingNotificationEmail(booking: Booking) {
             <td style="padding: 10px 12px; border-bottom: 1px solid #E2E8F0; color: #7A0019; font-weight: bold; font-size: 15px;">₹${(booking.estimated_amount || 364500).toLocaleString('en-IN')} (Inc. 18% GST)</td>
           </tr>
           <tr style="background-color: #F8FAFC;">
-            <td style="padding: 10px 12px; border-bottom: 1px solid #E2E8F0; font-weight: bold; color: #4A5568;">Payment Gateway (PG) Status</td>
+            <td style="padding: 10px 12px; border-bottom: 1px solid #E2E8F0; font-weight: bold; color: #4A5568;">Reservation & Payment Status</td>
             <td style="padding: 10px 12px; border-bottom: 1px solid #E2E8F0; color: #2F855A; font-weight: bold;">
               ${booking.payment_status === 'Advance Paid' 
-                ? `Paid ₹${(booking.advance_paid_amount || 50000).toLocaleString('en-IN')} via ${booking.payment_method || 'UPI'} (Txn Ref: ${booking.pg_transaction_id || 'PG-UPI-SUCCESS'})`
-                : 'Pending Pay-at-Venue / PG On Approval'}
+                ? `Paid ₹${(booking.advance_paid_amount || 50000).toLocaleString('en-IN')} via ${booking.payment_method || 'Direct Venue'}`
+                : 'Direct Venue Booking / Pay at Venue'}
             </td>
           </tr>
           <tr style="background-color: #FFFFFF;">
-            <td style="padding: 10px 12px; border-bottom: 1px solid #E2E8F0; font-weight: bold; color: #4A5568;">PG Rooms & Accommodation</td>
+            <td style="padding: 10px 12px; border-bottom: 1px solid #E2E8F0; font-weight: bold; color: #4A5568;">Guest Rooms & Accommodation</td>
             <td style="padding: 10px 12px; border-bottom: 1px solid #E2E8F0; color: #1A202C;">
               ${booking.pg_rooms_selected ? `${booking.pg_rooms_selected.triple_rooms} Triple Rooms (₹2k/ea), ${booking.pg_rooms_selected.eight_person_rooms} Group Rooms (₹3k/ea)` : 'Standard Bride & Groom Suites included'}
             </td>
@@ -624,6 +633,7 @@ async function sendBookingNotificationEmail(booking: Booking) {
           }
         };
 
+        const adminRecipients = [adminEmail, 'KMpalace2026@gmail.com'];
         for (const recipient of adminRecipients) {
           const sent = await sendResendEmail(
             recipient,
@@ -638,14 +648,14 @@ async function sendBookingNotificationEmail(booking: Booking) {
           }
         }
 
-        if (customerEmail) {
+        if (targetCustomerEmail) {
           const sentCust = await sendResendEmail(
-            customerEmail,
+            targetCustomerEmail,
             `KM PALACE Booking Confirmation [${booking.booking_id}]`,
             customerHtml
           );
           if (sentCust) {
-            const rCustLog = `[RESEND SUCCESS] Sent customer confirmation to ${customerEmail}`;
+            const rCustLog = `[RESEND SUCCESS] Sent customer confirmation to ${targetCustomerEmail}`;
             console.log(rCustLog);
             dispatchLogs.push(rCustLog);
           }
@@ -864,21 +874,31 @@ app.get('/api/bookings', async (req: Request, res: Response) => {
 
 // POST check availability dynamically
 app.post('/api/bookings/check-availability', async (req: Request, res: Response) => {
-  const { marriage_date, muhurtham_time, current_booking_id } = req.body;
+  const { marriage_date, muhurtham_time, slot_type, from_time, end_time, current_booking_id } = req.body;
 
   if (!marriage_date) {
     return res.status(400).json({ error: 'Marriage date is required.' });
   }
 
+  const slotTypeVal = (slot_type || '24hr') as SlotType;
   const data = await loadDataWithSupabase();
-  const { blockedDates, blockedPreviousDay } = calculateBlockedDates(marriage_date, muhurtham_time || '09:00 AM');
+  const { blockedDates, blockedPreviousDay } = calculateBlockedDates(
+    marriage_date,
+    slotTypeVal,
+    from_time,
+    end_time,
+    muhurtham_time || '09:00 AM'
+  );
   
   const { hasConflict, conflictingDates, conflictReason } = checkBookingConflict(
     marriage_date,
     muhurtham_time || '09:00 AM',
     data.bookings,
     data.adminBlocks,
-    current_booking_id
+    current_booking_id,
+    slotTypeVal,
+    from_time,
+    end_time
   );
 
   res.json({

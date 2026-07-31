@@ -296,8 +296,8 @@ export function calculateBlockedDates(
 export function checkBookingConflict(
   newMarriageDate: string,
   muhurthamTimeOrSlot: string = '24hr',
-  existingBookings: Booking[],
-  existingAdminBlocks: AdminManualBlock[],
+  existingBookings: Booking[] = [],
+  existingAdminBlocks: AdminManualBlock[] = [],
   excludeBookingId?: string,
   slotType: SlotType = '24hr',
   fromTimeStr?: string,
@@ -306,6 +306,9 @@ export function checkBookingConflict(
   if (!newMarriageDate) {
     return { hasConflict: false, conflictingDates: [] };
   }
+
+  const safeBookings = Array.isArray(existingBookings) ? existingBookings : [];
+  const safeAdminBlocks = Array.isArray(existingAdminBlocks) ? existingAdminBlocks : [];
 
   // Determine actual slotType if passed in muhurthamTimeOrSlot
   let resolvedSlotType: SlotType = slotType;
@@ -333,7 +336,7 @@ export function checkBookingConflict(
   let conflictReason = '';
 
   // 1. Check against active existing bookings
-  for (const booking of existingBookings) {
+  for (const booking of safeBookings) {
     if (booking.booking_status === 'Cancelled') continue;
     if (excludeBookingId && booking.id === excludeBookingId) continue;
 
@@ -374,7 +377,7 @@ export function checkBookingConflict(
 
   // 2. Check against admin manual blocks (Admin manual block blocks whole day)
   if (conflictingDates.length === 0) {
-    for (const adminBlock of existingAdminBlocks) {
+    for (const adminBlock of safeAdminBlocks) {
       if (proposedBlockedDates.includes(adminBlock.date)) {
         conflictingDates.push(adminBlock.date);
         conflictReason = `Date ${formatDisplayDate(adminBlock.date)} is blocked by Admin (${adminBlock.reason}).`;

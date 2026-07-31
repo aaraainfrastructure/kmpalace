@@ -152,6 +152,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (!editingBooking) return;
     const { blockedDates, blockedPreviousDay } = calculateBlockedDates(
       editingBooking.marriage_date,
+      editingBooking.slot_type || '24hr',
+      editingBooking.from_time,
+      editingBooking.end_time,
       editingBooking.muhurtham_time || '09:00 AM'
     );
     setEditingBooking({
@@ -190,7 +193,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const currentBlockedDates =
       editingBooking.blocked_dates && editingBooking.blocked_dates.length > 0
         ? editingBooking.blocked_dates
-        : calculateBlockedDates(editingBooking.marriage_date, editingBooking.muhurtham_time || '09:00 AM').blockedDates;
+        : calculateBlockedDates(editingBooking.marriage_date, editingBooking.slot_type || '24hr', editingBooking.from_time, editingBooking.end_time, editingBooking.muhurtham_time || '09:00 AM').blockedDates;
 
     const updatedData: Partial<Booking> = {
       ...editingBooking,
@@ -553,7 +556,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <th className="p-3.5">Booked On</th>
                 <th className="p-3.5">Marriage Date</th>
                 <th className="p-3.5">Muhurtham</th>
-                <th className="p-3.5">Payment & Rooms</th>
+                <th className="p-3.5">Tariff & Services</th>
                 <th className="p-3.5">Blocked Schedule</th>
                 <th className="p-3.5">Status</th>
                 <th className="p-3.5 text-right">Actions</th>
@@ -603,11 +606,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </div>
                       {b.payment_status === 'Advance Paid' ? (
                         <span className="inline-block px-2 py-0.5 rounded-full bg-[rgba(125,155,106,0.15)] text-[#7D9B6A] font-semibold text-[9px] border border-[rgba(125,155,106,0.3)]">
-                          PG Paid: ₹{(b.advance_paid_amount || 50000).toLocaleString('en-IN')} ({b.payment_method || 'UPI'})
+                          Paid: ₹{(b.advance_paid_amount || 50000).toLocaleString('en-IN')}
                         </span>
                       ) : (
                         <span className="inline-block px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 font-semibold text-[9px] border border-amber-200">
-                          PG Pending
+                          Direct Venue Booking
                         </span>
                       )}
                       {b.pg_rooms_selected && (
@@ -1259,7 +1262,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               {/* Financials & Payment */}
               <div className="p-4 rounded-[16px] bg-[#FFFDF9] border border-[rgba(199,168,109,0.3)] space-y-3">
                 <h4 className="text-xs font-bold text-[#9B7A46] uppercase tracking-wider">
-                  Tariff & Payment Gateway Status
+                  Tariff & Reservation Payment Status
                 </h4>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs text-[#2E2A26]">
                   <div>

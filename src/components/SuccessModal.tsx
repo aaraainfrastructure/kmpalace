@@ -119,18 +119,16 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({ booking, onClose }) 
                 <span className="text-lg font-num font-bold text-[#9B7A46]">₹{booking.estimated_amount.toLocaleString('en-IN')}</span>
               </div>
 
-              {/* PG Payment Receipt Status */}
-              {booking.payment_status === 'Advance Paid' && (
-                <div className="p-3.5 rounded-[14px] bg-white/80 border border-[rgba(125,155,106,0.35)] text-[#2E2A26] space-y-1">
-                  <div className="flex items-center justify-between font-semibold">
-                    <span className="text-[#7D9B6A]">💳 Payment Gateway (PG) Status: Paid</span>
-                    <span className="font-num text-xs text-[#9B7A46]">{booking.pg_transaction_id || 'PG-UPI-SUCCESS'}</span>
-                  </div>
-                  <p className="text-[11px] text-[#6F655B]">
-                    Advance Paid: <strong className="text-[#2E2A26] font-num">₹{(booking.advance_paid_amount || 50000).toLocaleString('en-IN')}</strong> via {booking.payment_method || 'UPI'}
-                  </p>
+              {/* Payment Status Note */}
+              <div className="p-3.5 rounded-[14px] bg-white/80 border border-[rgba(199,168,109,0.35)] text-[#2E2A26] space-y-1">
+                <div className="flex items-center justify-between font-semibold">
+                  <span className="text-[#9B7A46]">Reservation Status: Confirmed</span>
+                  <span className="font-num text-xs text-[#6F655B]">Direct Venue Booking</span>
                 </div>
-              )}
+                <p className="text-[11px] text-[#6F655B]">
+                  Booking Advance & Caution Deposit payable directly at venue prior to event setup.
+                </p>
+              </div>
 
               <div className="flex items-start space-x-2 text-[11px] text-[#6F655B]">
                 <Sparkles className="w-4 h-4 text-[#C7A86D] shrink-0 mt-0.5" />

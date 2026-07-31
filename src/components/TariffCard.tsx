@@ -120,7 +120,7 @@ export const VENUE_RULES = [
 ];
 
 export const TariffCard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'tariff' | 'addons' | 'pg' | 'terms'>('tariff');
+  const [activeTab, setActiveTab] = useState<'tariff' | 'addons' | 'accommodations' | 'terms'>('tariff');
 
   const baseSubtotal = OFFICIAL_TARIFF_ITEMS.reduce((sum, item) => sum + item.price, 0);
   const gstAmount = Math.round(225000 * 0.18); // 18% GST on Hall rent ₹2,25,000
@@ -134,13 +134,13 @@ export const TariffCard: React.FC = () => {
         <div className="text-center max-w-3xl mx-auto mb-10">
           <div className="inline-flex items-center space-x-2 px-4 py-1 rounded-full bg-[rgba(255,255,255,0.7)] backdrop-blur-md border border-[rgba(199,168,109,0.35)] text-xs font-medium text-[#9B7A46] mb-3 shadow-sm">
             <FileText className="w-3.5 h-3.5 text-[#C7A86D]" />
-            <span className="uppercase tracking-widest text-[10px] font-semibold">Official 24-Hour Tariff Quote & Payment Gateway</span>
+            <span className="uppercase tracking-widest text-[10px] font-semibold">Official 24-Hour Tariff Quote & Venue Features</span>
           </div>
           <h2 className="text-3xl sm:text-4xl font-serif font-bold text-[#2E2A26]">
             Transparent Investment & Deluxe Accommodations
           </h2>
           <p className="mt-2 text-[#6F655B] text-sm leading-relaxed">
-            Itemized investment structure with zero hidden fees. Instant online advance reservation via Payment Gateway (PG) with UPI, Cards & NetBanking.
+            Itemized investment structure with zero hidden fees. Instant online reservation with direct confirmation.
           </p>
         </div>
 
@@ -172,15 +172,15 @@ export const TariffCard: React.FC = () => {
             </button>
 
             <button
-              onClick={() => setActiveTab('pg')}
+              onClick={() => setActiveTab('accommodations')}
               className={`px-5 py-2.5 rounded-full text-xs font-medium transition-all flex items-center space-x-2 cursor-pointer ${
-                activeTab === 'pg'
+                activeTab === 'accommodations'
                   ? 'btn-gold shadow-md'
                   : 'text-[#2E2A26] hover:text-[#C7A86D] hover:bg-white/60'
               }`}
             >
               <ShieldCheck className="w-4 h-4" />
-              <span>PG Payment & Accommodations</span>
+              <span>Guest Accommodations</span>
             </button>
 
             <button
@@ -379,62 +379,62 @@ export const TariffCard: React.FC = () => {
           </div>
         )}
 
-        {/* TAB 3: PG ONLINE PAYMENT GATEWAY & PG GUEST ROOMS */}
-        {activeTab === 'pg' && (
+        {/* TAB 3: DELUXE GUEST ACCOMMODATIONS */}
+        {activeTab === 'accommodations' && (
           <div className="glass-card rounded-[24px] p-6 sm:p-8 transition-all animate-fade-in space-y-6">
             <div className="flex items-center space-x-3 pb-4 border-b border-[rgba(199,168,109,0.25)]">
               <ShieldCheck className="w-6 h-6 text-[#C7A86D]" />
               <div>
-                <h3 className="text-xl font-serif font-bold text-[#2E2A26]">Payment Gateway (PG) & PG Deluxe Guest Accommodations</h3>
-                <p className="text-xs text-[#6F655B]">Secure online payment authorization and PG guest room facilities at KM PALACE</p>
+                <h3 className="text-xl font-serif font-bold text-[#2E2A26]">Deluxe Guest Accommodations & Suite Facilities</h3>
+                <p className="text-xs text-[#6F655B]">Air-conditioned guest rooms and family suite suites at KM PALACE</p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* PG Payment Gateway Box */}
+              {/* Room Features Box */}
               <div className="p-6 rounded-[20px] bg-[rgba(255,255,255,0.75)] border border-[rgba(199,168,109,0.35)] space-y-4 shadow-sm">
                 <div className="flex items-center space-x-2 text-[#2E2A26] font-semibold text-sm">
-                  <Zap className="w-4 h-4 text-[#C7A86D]" />
-                  <h4>Online Payment Gateway (PG) Features</h4>
+                  <Sparkles className="w-4 h-4 text-[#C7A86D]" />
+                  <h4>Room Amenities & Guest Comforts</h4>
                 </div>
                 <ul className="space-y-3 text-xs text-[#6F655B]">
                   <li className="flex items-start space-x-2">
                     <CheckCircle2 className="w-4 h-4 text-[#7D9B6A] shrink-0 mt-0.5" />
-                    <span><strong>Instant UPI / QR Code:</strong> Pay via Google Pay, PhonePe, Paytm, or BHIM directly to VPA <code className="text-[#2E2A26]">kmpalace@upi</code>.</span>
+                    <span><strong>100% Air-Conditioned Suites:</strong> All guest rooms feature powerful split AC units and premium bedding.</span>
                   </li>
                   <li className="flex items-start space-x-2">
                     <CheckCircle2 className="w-4 h-4 text-[#7D9B6A] shrink-0 mt-0.5" />
-                    <span><strong>Cards & NetBanking:</strong> Secure instant debit/credit card processing with immediate digital receipt generation.</span>
+                    <span><strong>Attached Western Bathrooms:</strong> Clean modern ceramic fittings with 24-hour hot water heater backup.</span>
                   </li>
                   <li className="flex items-start space-x-2">
                     <CheckCircle2 className="w-4 h-4 text-[#7D9B6A] shrink-0 mt-0.5" />
-                    <span><strong>Flexible Booking Deposit:</strong> Pay ₹50,000 booking advance or ₹20,000 caution deposit to lock the dates instantly.</span>
+                    <span><strong>Complimentary Bride & Groom Suite:</strong> Two dedicated air-conditioned dressing rooms included free of charge.</span>
                   </li>
                   <li className="flex items-start space-x-2">
                     <CheckCircle2 className="w-4 h-4 text-[#7D9B6A] shrink-0 mt-0.5" />
-                    <span><strong>Automatic Email Confirmation:</strong> Instant digital invoice & reservation voucher dispatched to <code className="text-[#2E2A26]">Kannan.d26@gmail.com</code>.</span>
+                    <span><strong>Keyless Access & Security:</strong> Safe, secure digital lock system for peace of mind during celebrations.</span>
                   </li>
                 </ul>
               </div>
 
-              {/* PG Deluxe Rooms Box */}
+              {/* Guest Rooms Tariff Box */}
               <div className="p-6 rounded-[20px] bg-[rgba(255,255,255,0.75)] border border-[rgba(199,168,109,0.35)] space-y-4 shadow-sm">
                 <div className="flex items-center space-x-2 text-[#2E2A26] font-semibold text-sm">
                   <Sparkles className="w-4 h-4 text-[#C7A86D]" />
-                  <h4>PG & Guest Accommodation Facilities</h4>
+                  <h4>Guest Accommodation Pricing</h4>
                 </div>
                 <div className="space-y-3 text-xs">
                   <div className="p-3.5 rounded-[14px] bg-[rgba(245,239,230,0.5)] border border-[rgba(199,168,109,0.25)] flex items-center justify-between">
                     <div>
-                      <p className="font-semibold text-[#2E2A26]">6 Triple Occupancy PG Deluxe Rooms</p>
-                      <p className="text-[11px] text-[#6F655B]">Air-conditioned, attached bath, keyless entry</p>
+                      <p className="font-semibold text-[#2E2A26]">6 Triple Occupancy Deluxe Rooms</p>
+                      <p className="text-[11px] text-[#6F655B]">Air-conditioned, attached bath, 3 comfortable beds</p>
                     </div>
                     <span className="font-num font-bold text-sm text-[#C7A86D]">₹2,000 / room</span>
                   </div>
 
                   <div className="p-3.5 rounded-[14px] bg-[rgba(245,239,230,0.5)] border border-[rgba(199,168,109,0.25)] flex items-center justify-between">
                     <div>
-                      <p className="font-semibold text-[#2E2A26]">3 Eight-Person Group PG Rooms</p>
+                      <p className="font-semibold text-[#2E2A26]">3 Eight-Person Group Rooms</p>
                       <p className="text-[11px] text-[#6F655B]">Spacious hall suite for extended family</p>
                     </div>
                     <span className="font-num font-bold text-sm text-[#C7A86D]">₹3,000 / room</span>

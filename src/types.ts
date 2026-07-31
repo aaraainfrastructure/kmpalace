@@ -39,7 +39,7 @@ export interface Booking {
   created_at: string;
   notes?: string;
   estimated_amount?: number;
-  payment_method?: 'UPI' | 'Card' | 'NetBanking' | 'Cash';
+  payment_method?: 'UPI' | 'Card' | 'NetBanking' | 'Cash' | 'Direct Venue';
   payment_gateway?: 'Manual' | string;
   currency?: 'INR' | 'USD';
   customer_region?: 'India' | 'International';

@@ -118,7 +118,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
     'Generator',
   ]);
 
-  // PDF Tariff Add-on Options & PG Rooms
+  // PDF Tariff Add-on Options & Guest Rooms
   const [tripleRoomsCount, setTripleRoomsCount] = useState<number>(2); // ₹2000 per room
   const [eightPersonRoomsCount, setEightPersonRoomsCount] = useState<number>(1); // ₹3000 per room
   const [includeDecoration, setIncludeDecoration] = useState<boolean>(true); // ₹1,50,000
@@ -129,7 +129,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
   const [agreedToPureVeg, setAgreedToPureVeg] = useState<boolean>(true);
   const [showInlineCalendar, setShowInlineCalendar] = useState<boolean>(false);
 
-  // Regional & Gateway Detection State
+  // Regional Currency Detection State
   const [customerRegion, setCustomerRegion] = useState<'India' | 'International'>(() => {
     try {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
@@ -142,15 +142,6 @@ export const BookingForm: React.FC<BookingFormProps> = ({
       return 'India';
     }
   });
-
-  const [paymentGateway, setPaymentGateway] = useState<string>('Manual');
-
-  // Payment Gateway (PG) State
-  const [paymentMethod, setPaymentMethod] = useState<'UPI' | 'Card' | 'NetBanking' | 'Cash'>(() => {
-    return customerRegion === 'India' ? 'UPI' : 'Card';
-  });
-  const [payAdvanceNow, setPayAdvanceNow] = useState<boolean>(true);
-  const [advanceAmountType, setAdvanceAmountType] = useState<'advance50k' | 'caution20k' | 'full'>('advance50k');
 
   const [notes, setNotes] = useState('');
 
@@ -170,17 +161,8 @@ export const BookingForm: React.FC<BookingFormProps> = ({
   const addOnsTotal = tripleRoomsCost + eightPersonRoomsCost + decorCost + ledScreenCost + bananaTreesCost + valetCost + extraSecurityCost;
   const totalEstimatedAmount = BASE_HALL_SUBTOTAL + GST_18_PERCENT + addOnsTotal;
 
-  const actualAdvancePaid = payAdvanceNow
-    ? advanceAmountType === 'advance50k'
-      ? 50000
-      : advanceAmountType === 'caution20k'
-      ? 20000
-      : totalEstimatedAmount
-    : 0;
-
   // Currency Exchange: $1 USD = ₹83.50 INR
   const USD_EXCHANGE_RATE = 83.50;
-  const actualAdvanceUSD = Math.round(actualAdvancePaid / USD_EXCHANGE_RATE);
   const totalEstimatedUSD = Math.round(totalEstimatedAmount / USD_EXCHANGE_RATE);
 
   const [submitting, setSubmitting] = useState(false);
@@ -250,11 +232,6 @@ export const BookingForm: React.FC<BookingFormProps> = ({
 
   const handleRegionSelect = (region: 'India' | 'International') => {
     setCustomerRegion(region);
-    if (region === 'India') {
-      setPaymentMethod('UPI');
-    } else {
-      setPaymentMethod('Card');
-    }
   };
 
   const toggleRequirement = (req: SpecialRequirement) => {
@@ -265,15 +242,8 @@ export const BookingForm: React.FC<BookingFormProps> = ({
     }
   };
 
-  // Helper to post final booking payload to server
-  const sendFinalBookingPayload = async (paymentDetails: {
-    payment_gateway: string;
-    currency: 'INR' | 'USD';
-    customer_region: 'India' | 'International';
-    payment_status: 'Pending' | 'Advance Paid' | 'Fully Paid';
-    pg_transaction_id?: string;
-    advance_paid_amount: number;
-  }) => {
+  // Helper to post booking payload to server
+  const sendFinalBookingPayload = async () => {
     const payload = {
       customer_name: customerName,
       phone,
@@ -291,13 +261,12 @@ export const BookingForm: React.FC<BookingFormProps> = ({
       requirements: selectedRequirements,
       notes,
       estimated_amount: totalEstimatedAmount,
-      payment_method: paymentMethod,
-      payment_gateway: paymentDetails.payment_gateway,
-      currency: paymentDetails.currency,
-      customer_region: paymentDetails.customer_region,
-      payment_status: paymentDetails.payment_status,
-      pg_transaction_id: paymentDetails.pg_transaction_id,
-      advance_paid_amount: paymentDetails.advance_paid_amount,
+      payment_method: 'Direct Venue',
+      payment_gateway: 'Manual',
+      currency: customerRegion === 'India' ? 'INR' : 'USD',
+      customer_region: customerRegion,
+      payment_status: 'Pending',
+      advance_paid_amount: 0,
       pg_rooms_selected: {
         triple_rooms: tripleRoomsCount,
         eight_person_rooms: eightPersonRoomsCount,
@@ -321,8 +290,13 @@ export const BookingForm: React.FC<BookingFormProps> = ({
         return;
       }
 
-      const data = await res.json().catch(() => ({}));
-      const errText = data.conflictReason || data.error || data.message || 'Booking submission failed. Please check date availability or required fields and try again.';
+      let errData: any = {};
+      try {
+        errData = await res.json();
+      } catch (e) {
+        errData = {};
+      }
+      const errText = errData.conflictReason || errData.error || errData.message || `Booking submission error (HTTP ${res.status}). Please check date availability or required fields and try again.`;
       setErrorMessage(errText);
       setSubmitting(false);
       return;
@@ -353,11 +327,11 @@ export const BookingForm: React.FC<BookingFormProps> = ({
       created_at: new Date().toISOString(),
       notes,
       estimated_amount: totalEstimatedAmount,
-      payment_method: paymentMethod,
-      payment_gateway: paymentDetails.payment_gateway,
-      currency: paymentDetails.currency,
-      customer_region: paymentDetails.customer_region,
-      payment_status: paymentDetails.payment_status,
+      payment_method: 'Direct Venue',
+      payment_gateway: 'Manual',
+      currency: customerRegion === 'India' ? 'INR' : 'USD',
+      customer_region: customerRegion,
+      payment_status: 'Pending',
       pg_rooms_selected: {
         triple_rooms: tripleRoomsCount,
         eight_person_rooms: eightPersonRoomsCount,
@@ -368,8 +342,6 @@ export const BookingForm: React.FC<BookingFormProps> = ({
     setSubmitting(false);
     onSubmitSuccess(fallbackBooking);
   };
-
-
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -413,15 +385,9 @@ export const BookingForm: React.FC<BookingFormProps> = ({
       return;
     }
 
-    // Direct submission without payment gateway
+    // Direct submission
     setSubmitting(true);
-    await sendFinalBookingPayload({
-      payment_gateway: 'Manual',
-      currency: customerRegion === 'India' ? 'INR' : 'USD',
-      customer_region: customerRegion,
-      payment_status: 'Pending',
-      advance_paid_amount: 0,
-    });
+    await sendFinalBookingPayload();
   };
 
   return (
@@ -770,7 +736,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
                                 <div className="flex items-start justify-between gap-1 mb-1.5">
                                   <div className="flex items-center space-x-1.5">
                                     <IconComp className={`w-4 h-4 ${isSelected ? 'text-[#C7A86D]' : 'text-[#8C6D3B]'}`} />
-                                    <span className="font-serif font-bold text-xs sm:text-sm">{slot.name}</span>
+                                    <span className="font-serif font-bold text-xs sm:text-sm">{slot.title}</span>
                                   </div>
                                   <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider shrink-0 ${
                                     isSelected ? 'bg-[#C7A86D] text-[#1A1816]' : 'bg-[rgba(199,168,109,0.2)] text-[#8C6D3B]'
@@ -1385,8 +1351,8 @@ export const BookingForm: React.FC<BookingFormProps> = ({
             </div>
 
             <div className="p-3.5 rounded-[14px] bg-[rgba(245,239,230,0.6)] border border-[rgba(199,168,109,0.25)] text-[#6F655B] text-[11px] flex items-center justify-between">
-              <span>Direct Reservation Mode (Zero Online Payment Processing Charges)</span>
-              <span className="font-bold text-[#9B7A46]">Direct Booking Request</span>
+              <span>Direct Venue Reservation Request</span>
+              <span className="font-bold text-[#9B7A46]">Instant Submission</span>
             </div>
           </div>
         </div>
