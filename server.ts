@@ -78,7 +78,12 @@ const DEFAULT_SERVER_DATA: ServerData = {
 };
 
 
+let globalServerDataCache: ServerData | null = null;
+
 function loadServerData(): ServerData {
+  if (globalServerDataCache && Array.isArray(globalServerDataCache.bookings)) {
+    return globalServerDataCache;
+  }
   try {
     let parsed: any = null;
     if (fs.existsSync(DATA_FILE)) {
@@ -92,19 +97,22 @@ function loadServerData(): ServerData {
       }
     }
     if (parsed && typeof parsed === 'object') {
-      return {
+      globalServerDataCache = {
         bookings: Array.isArray(parsed.bookings) ? parsed.bookings : [],
         adminBlocks: Array.isArray(parsed.adminBlocks) ? parsed.adminBlocks : [],
         nextSequence: typeof parsed.nextSequence === 'number' ? parsed.nextSequence : 1,
       };
+      return globalServerDataCache;
     }
   } catch (err) {
     console.error('Error reading server data file:', err);
   }
-  return { bookings: [], adminBlocks: [], nextSequence: 1 };
+  globalServerDataCache = { bookings: [], adminBlocks: [], nextSequence: 1 };
+  return globalServerDataCache;
 }
 
 function saveServerData(data: ServerData) {
+  globalServerDataCache = data;
   try {
     fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
   } catch (err) {
@@ -112,11 +120,33 @@ function saveServerData(data: ServerData) {
   }
 }
 
-// Supabase Async Persistence Helpers
+// Timeout wrapper helper to prevent DB query hangs when DB goes offline or is paused
+async function withTimeout<T>(promiseLike: Promise<T> | any, ms: number, fallback: T): Promise<T> {
+  let timer: NodeJS.Timeout;
+  const timeoutPromise = new Promise<T>((resolve) => {
+    timer = setTimeout(() => resolve(fallback), ms);
+  });
+  try {
+    const result = await Promise.race([Promise.resolve(promiseLike), timeoutPromise]);
+    clearTimeout(timer!);
+    return result;
+  } catch (err) {
+    clearTimeout(timer!);
+    return fallback;
+  }
+}
+
+// Supabase Async Persistence Helpers (Resilient to DB Offline Outages)
 async function loadDataWithSupabase(): Promise<ServerData> {
   const localData = loadServerData();
   try {
-    const { data: dbBookings, error: bErr } = await supabase.from('bookings').select('*').order('created_at', { ascending: false });
+    const dbPromise = supabase.from('bookings').select('*').order('created_at', { ascending: false });
+    const { data: dbBookings, error: bErr } = await withTimeout(
+      dbPromise,
+      2000,
+      { data: null, error: { message: 'DB Timeout or Offline' } }
+    );
+
     if (!bErr && Array.isArray(dbBookings) && dbBookings.length > 0) {
       const fetchedMap = new Map<string, Booking>();
       dbBookings.forEach((b: any) => {
@@ -153,7 +183,7 @@ async function loadDataWithSupabase(): Promise<ServerData> {
         fetchedMap.set(mapped.id, mapped);
       });
 
-      // Preserve local bookings so new or un-synced entries are never lost
+      // Merge local in-memory bookings so un-synced entries are preserved
       localData.bookings.forEach((localB) => {
         if (!fetchedMap.has(localB.id)) {
           fetchedMap.set(localB.id, localB);
@@ -164,12 +194,21 @@ async function loadDataWithSupabase(): Promise<ServerData> {
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
     }
-    const { data: dbBlocks, error: blErr } = await supabase.from('admin_blocks').select('*');
-    if (!blErr && Array.isArray(dbBlocks)) {
+
+    const blockPromise = supabase.from('admin_blocks').select('*');
+    const { data: dbBlocks, error: blErr } = await withTimeout(
+      blockPromise,
+      2000,
+      { data: null, error: { message: 'DB Timeout or Offline' } }
+    );
+
+    if (!blErr && Array.isArray(dbBlocks) && dbBlocks.length > 0) {
       localData.adminBlocks = dbBlocks as AdminManualBlock[];
     }
+
+    saveServerData(localData);
   } catch (err) {
-    console.log('[Supabase Sync] Using local storage fallback.');
+    console.log('[Supabase Sync Notice] DB Offline or unreachable; gracefully using local memory cache.');
   }
   return localData;
 }
@@ -209,28 +248,22 @@ async function saveBookingToSupabase(booking: Booking) {
       created_at: booking.created_at || new Date().toISOString(),
     };
 
-    const { error } = await supabase.from('bookings').upsert([payload], { onConflict: 'id' });
+    const upsertPromise = supabase.from('bookings').upsert([payload], { onConflict: 'id' });
+    const { error } = await withTimeout(upsertPromise, 2500, { error: { message: 'Supabase upsert timeout' } });
     if (error) {
-      console.warn('[Supabase Upsert Warning]:', error.message || error);
-      // Retry without slot_type if schema cache missing column
       delete payload.slot_type;
-      const { error: retryError } = await supabase.from('bookings').upsert([payload], { onConflict: 'id' });
-      if (retryError) {
-        console.warn('[Supabase Fallback Upsert Warning]:', retryError.message || retryError);
-      } else {
-        console.log(`[Supabase Fallback Upsert Success] Booking ${booking.booking_id} saved.`);
-      }
-    } else {
-      console.log(`[Supabase Upsert Success] Booking ${booking.booking_id} saved to database.`);
+      const retryPromise = supabase.from('bookings').upsert([payload], { onConflict: 'id' });
+      await withTimeout(retryPromise, 2500, { error: { message: 'Supabase fallback upsert timeout' } });
     }
   } catch (err: any) {
-    console.error('[Supabase Save Exception]:', err?.message || err);
+    console.warn('[Supabase Save Exception]: DB Offline/Unreachable, preserved locally.', err?.message || err);
   }
 }
 
 async function deleteBookingFromSupabase(id: string) {
   try {
-    await supabase.from('bookings').delete().eq('id', id);
+    const delPromise = supabase.from('bookings').delete().eq('id', id);
+    await withTimeout(delPromise, 2500, null);
   } catch (err) {
     console.log('[Supabase Delete Note] Processed locally.');
   }
@@ -238,7 +271,8 @@ async function deleteBookingFromSupabase(id: string) {
 
 async function saveAdminBlockToSupabase(block: AdminManualBlock) {
   try {
-    await supabase.from('admin_blocks').upsert([block], { onConflict: 'id' });
+    const upsertPromise = supabase.from('admin_blocks').upsert([block], { onConflict: 'id' });
+    await withTimeout(upsertPromise, 2500, null);
   } catch (err) {
     console.log('[Supabase Block Note] Saved locally.');
   }
@@ -246,7 +280,8 @@ async function saveAdminBlockToSupabase(block: AdminManualBlock) {
 
 async function deleteAdminBlockFromSupabase(id: string) {
   try {
-    await supabase.from('admin_blocks').delete().eq('id', id);
+    const delPromise = supabase.from('admin_blocks').delete().eq('id', id);
+    await withTimeout(delPromise, 2500, null);
   } catch (err) {
     console.log('[Supabase Block Delete Note] Processed locally.');
   }
@@ -946,7 +981,7 @@ app.post('/api/bookings', async (req: Request, res: Response) => {
     data.bookings.unshift(newBooking);
     data.nextSequence = seq + 1;
     saveServerData(data);
-    await saveBookingToSupabase(newBooking);
+    saveBookingToSupabase(newBooking).catch((err) => console.warn('[Supabase Async Save Warning]:', err));
 
     // Non-blocking asynchronous email dispatch for fast HTTP response (<200ms)
     sendBookingNotificationEmail(newBooking)
@@ -1008,7 +1043,7 @@ app.patch('/api/bookings/:id', async (req: Request, res: Response) => {
 
   data.bookings[index] = updatedBooking;
   saveServerData(data);
-  await saveBookingToSupabase(updatedBooking);
+  saveBookingToSupabase(updatedBooking).catch((err) => console.warn('[Supabase Async Patch Warning]:', err));
 
   res.json({ success: true, booking: updatedBooking });
 });
@@ -1030,7 +1065,7 @@ app.delete('/api/bookings/:id', async (req: Request, res: Response) => {
   data.bookings = data.bookings.filter((b) => b.id !== id && b.booking_id !== id);
 
   saveServerData(data);
-  await deleteBookingFromSupabase(targetBooking.id);
+  deleteBookingFromSupabase(targetBooking.id).catch((err) => console.warn('[Supabase Async Delete Warning]:', err));
 
   res.json({ success: true, message: 'Booking deleted successfully.' });
 });
@@ -1111,7 +1146,7 @@ app.post('/api/admin/blocks', async (req: Request, res: Response) => {
       };
       data.adminBlocks.push(newBlock);
       createdBlocks.push(newBlock);
-      await saveAdminBlockToSupabase(newBlock);
+      saveAdminBlockToSupabase(newBlock).catch((err) => console.warn('[Supabase Async Block Warning]:', err));
     }
   }
 
@@ -1129,7 +1164,7 @@ app.delete('/api/admin/blocks/:id', async (req: Request, res: Response) => {
   const data = await loadDataWithSupabase();
   data.adminBlocks = data.adminBlocks.filter((b) => b.id !== id && b.date !== id);
   saveServerData(data);
-  await deleteAdminBlockFromSupabase(id);
+  deleteAdminBlockFromSupabase(id).catch((err) => console.warn('[Supabase Async Delete Block Warning]:', err));
 
   res.json({ success: true });
 });
