@@ -1,6 +1,82 @@
 {
   "bookings": [
     {
+      "id": "bk_1785584680631_25k0b",
+      "booking_id": "KM-20260801-032",
+      "customer_name": "Test Post Script",
+      "phone": "9999999999",
+      "email": "testpost@example.com",
+      "bride_name": "Bride Test",
+      "groom_name": "Groom Test",
+      "marriage_date": "2027-02-15",
+      "slot_type": "24hr",
+      "muhurtham_time": "06:00 AM",
+      "from_time": "12:00",
+      "end_time": "12:00",
+      "function_type": "Wedding",
+      "guest_count": 200,
+      "requirements": [
+        "Rooms"
+      ],
+      "blocked_previous_day": false,
+      "blocked_dates": [
+        "2027-02-15",
+        "2027-02-16"
+      ],
+      "booking_status": "Confirmed",
+      "created_at": "2026-08-01T11:44:40.631+00:00",
+      "notes": "Created from test script",
+      "estimated_amount": 364500,
+      "payment_method": "Direct Venue",
+      "payment_gateway": "Manual",
+      "currency": "INR",
+      "customer_region": "India",
+      "payment_status": "Pending",
+      "advance_paid_amount": 0
+    },
+    {
+      "id": "bk_1785581873735_ymscn",
+      "booking_id": "KM-20260801-031",
+      "customer_name": "16.27 test book gowri",
+      "phone": "9841867282",
+      "email": "gowri7282@gmail.com",
+      "bride_name": "16.27 test book gowri",
+      "groom_name": "16.27 test book gowri",
+      "marriage_date": "2026-09-15",
+      "slot_type": "24hr",
+      "muhurtham_time": "06:00 AM",
+      "from_time": "12:00",
+      "end_time": "12:00",
+      "function_type": "Wedding",
+      "guest_count": 600,
+      "requirements": [
+        "Decoration",
+        "Catering",
+        "Rooms",
+        "Parking",
+        "Generator"
+      ],
+      "blocked_previous_day": false,
+      "blocked_dates": [
+        "2026-09-15",
+        "2026-09-16"
+      ],
+      "booking_status": "Confirmed",
+      "created_at": "2026-08-01T10:57:53.735+00:00",
+      "notes": "",
+      "estimated_amount": 536000,
+      "payment_method": "Direct Venue",
+      "payment_gateway": "Manual",
+      "currency": "INR",
+      "customer_region": "India",
+      "payment_status": "Pending",
+      "advance_paid_amount": 0,
+      "pg_rooms_selected": {
+        "triple_rooms": 2,
+        "eight_person_rooms": 1
+      }
+    },
+    {
       "id": "bk_1785581102045_fiahy",
       "booking_id": "KM-20260801-030",
       "customer_name": "DB Offline Resilience Test",
