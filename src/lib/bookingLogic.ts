@@ -317,8 +317,8 @@ export function checkBookingConflict(
     return { hasConflict: false, conflictingDates: [] };
   }
 
-  const safeBookings = Array.isArray(existingBookings) ? existingBookings : [];
-  const safeAdminBlocks = Array.isArray(existingAdminBlocks) ? existingAdminBlocks : [];
+  const safeBookings = Array.isArray(existingBookings) ? existingBookings.filter((b) => b && typeof b === 'object') : [];
+  const safeAdminBlocks = Array.isArray(existingAdminBlocks) ? existingAdminBlocks.filter((b) => b && typeof b === 'object') : [];
 
   // Determine actual slotType if passed in muhurthamTimeOrSlot
   let resolvedSlotType: SlotType = slotType;

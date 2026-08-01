@@ -290,13 +290,25 @@ export const BookingForm: React.FC<BookingFormProps> = ({
         return;
       }
 
-      let errData: any = {};
+      let errText = '';
       try {
-        errData = await res.json();
+        const resText = await res.text();
+        try {
+          const errData = JSON.parse(resText);
+          errText = errData.conflictReason || errData.error || errData.message || '';
+        } catch {
+          errText = resText && resText.length < 200 ? resText : '';
+        }
       } catch (e) {
-        errData = {};
+        errText = '';
       }
-      const errText = errData.conflictReason || errData.error || errData.message || `Booking submission error (HTTP ${res.status}). Please check date availability or required fields and try again.`;
+
+      if (!errText) {
+        errText = res.status === 409
+          ? 'Hall is already reserved for the selected date/slot. Please choose another date or slot.'
+          : `Booking submission error (HTTP ${res.status}). Please check date availability or required fields and try again.`;
+      }
+
       setErrorMessage(errText);
       setSubmitting(false);
       return;
