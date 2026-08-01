@@ -32,7 +32,20 @@ import {
 
 const app = express();
 
-app.use(express.json());
+// Compatibility middleware for Vercel Serverless environment where req.body might already be parsed
+app.use((req: Request, res: Response, next: any) => {
+  if (req.body && typeof req.body === 'object') {
+    return next();
+  }
+  express.json({ limit: '10mb' })(req, res, next);
+});
+
+app.use((req: Request, res: Response, next: any) => {
+  if (req.body && typeof req.body === 'object') {
+    return next();
+  }
+  express.urlencoded({ extended: true, limit: '10mb' })(req, res, next);
+});
 
 // Enable CORS for all origins
 app.use((req, res, next) => {
@@ -45,13 +58,17 @@ app.use((req, res, next) => {
   next();
 });
 
+const router = express.Router();
+
 // GET Health Check
-app.get('/api/health', (req: Request, res: Response) => {
+const handleHealth = (req: Request, res: Response) => {
   res.json({ status: 'ok', service: 'KM PALACE Smart Booking Server', time: new Date() });
-});
+};
+router.get('/health', handleHealth);
+router.get('/', handleHealth);
 
 // ALL / POST Test Email
-app.all('/api/test-email', async (req: Request, res: Response) => {
+const handleTestEmail = async (req: Request, res: Response) => {
   try {
     const data = await loadDataWithSupabase();
     const latestRealBooking = data.bookings[0];
@@ -106,145 +123,11 @@ app.all('/api/test-email', async (req: Request, res: Response) => {
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message || String(err) });
   }
-});
-
-// GET Dynamic Sitemap XML
-app.get('/sitemap.xml', (req: Request, res: Response) => {
-  res.type('application/xml');
-  const host = req.get('host') || 'kmpalace.com';
-  const baseUrl = host.includes('localhost') || host.includes('run.app') ? `https://${host}` : 'https://kmpalace.com';
-
-  const blogSlugs = [
-    'top-10-marriage-halls-in-chennai',
-    'wedding-cost-in-chennai',
-    'best-wedding-venues-near-chennai-airport',
-    'traditional-tamil-wedding-checklist',
-    'how-to-book-a-marriage-hall',
-    'best-muhurtham-dates',
-    'wedding-decoration-ideas',
-    'wedding-photography-tips',
-    'how-much-does-a-marriage-hall-cost',
-    'marriage-hall-vs-banquet-hall',
-    'indoor-vs-outdoor-wedding',
-    'best-catering-ideas',
-    'wedding-timeline-planner',
-    'tamil-wedding-ritual-guide',
-    'marriage-registration-process',
-    'wedding-invitation-guide',
-    'budget-wedding-planning',
-    'wedding-makeup-guide',
-    'bridal-entry-ideas',
-    'reception-decoration-ideas',
-  ];
-
-  const today = new Date().toISOString().split('T')[0];
-
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<?xml-stylesheet type="text/xsl" href="/sitemap.xsl"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
-  <url>
-    <loc>${baseUrl}/</loc>
-    <lastmod>${today}</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>1.0</priority>
-  </url>
-${blogSlugs
-  .map(
-    (slug) => `  <url>
-    <loc>${baseUrl}/blog/${slug}</loc>
-    <lastmod>${today}</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>`
-  )
-  .join('\n')}
-</urlset>`;
-
-  res.send(xml.trim());
-});
-
-app.get('/sitemap.xsl', (req: Request, res: Response) => {
-  const filePath = path.join(process.cwd(), 'public', 'sitemap.xsl');
-  if (fs.existsSync(filePath)) {
-    res.header('Content-Type', 'application/xml; charset=utf-8');
-    res.sendFile(filePath);
-  } else {
-    res.status(404).send('XSL not found');
-  }
-});
-
-// GET Robots.txt
-app.get('/robots.txt', (req: Request, res: Response) => {
-  res.header('Content-Type', 'text/plain');
-  const host = req.get('host') || 'kmpalace.com';
-  const baseUrl = host.includes('localhost') || host.includes('run.app') ? `https://${host}` : 'https://kmpalace.com';
-  res.send(`User-agent: *
-Allow: /
-
-# AI Crawlers Explicit Authorizations (AEO & GEO)
-User-agent: GPTBot
-Allow: /
-
-User-agent: ChatGPT-User
-Allow: /
-
-User-agent: PerplexityBot
-Allow: /
-
-User-agent: ClaudeBot
-Allow: /
-
-User-agent: Claude-Web
-Allow: /
-
-User-agent: Google-Extended
-Allow: /
-
-User-agent: Applebot-Extended
-Allow: /
-
-User-agent: Bytespider
-Allow: /
-
-User-agent: CCBot
-Allow: /
-
-Sitemap: ${baseUrl}/sitemap.xml
-Sitemap: ${baseUrl}/llms.txt
-Sitemap: ${baseUrl}/llms-full.txt`);
-});
-
-// GET LLMs.txt
-app.get('/llms.txt', (req: Request, res: Response) => {
-  res.header('Content-Type', 'text/markdown; charset=utf-8');
-  const filePath = path.join(process.cwd(), 'public', 'llms.txt');
-  if (fs.existsSync(filePath)) {
-    return res.sendFile(filePath);
-  }
-  res.send(`# KM PALACE Marriage Hall & Kalyana Mandapam
-Address: 9/133, Sirukalathur Main Rd, Kavanur, Chembarambakkam, Tamil Nadu 600069, India
-Hotline: +91 9159277277
-Email: Kannan.d26@gmail.com
-Website: https://kmpalace.com`);
-});
-
-// GET LLMs-full.txt
-app.get('/llms-full.txt', (req: Request, res: Response) => {
-  res.header('Content-Type', 'text/markdown; charset=utf-8');
-  const filePath = path.join(process.cwd(), 'public', 'llms-full.txt');
-  if (fs.existsSync(filePath)) {
-    return res.sendFile(filePath);
-  }
-  res.send(`# KM PALACE Full Knowledge Base
-Address: 9/133, Sirukalathur Main Rd, Kavanur, Chembarambakkam, Tamil Nadu 600069, India
-Hotline: +91 9159277277
-Email: Kannan.d26@gmail.com`);
-});
+};
+router.all('/test-email', handleTestEmail);
 
 // GET all bookings (Admin vs Public)
-app.get('/api/bookings', async (req: Request, res: Response) => {
+const handleGetBookings = async (req: Request, res: Response) => {
   const data = await loadDataWithSupabase();
   const isAdmin = verifyAdmin(req);
 
@@ -270,10 +153,11 @@ app.get('/api/bookings', async (req: Request, res: Response) => {
   }));
 
   res.json({ bookings: sanitizedBookings, adminBlocks: data.adminBlocks });
-});
+};
+router.get('/bookings', handleGetBookings);
 
 // POST check availability
-app.post('/api/bookings/check-availability', async (req: Request, res: Response) => {
+const handleCheckAvailability = async (req: Request, res: Response) => {
   const { marriage_date, muhurtham_time, slot_type, from_time, end_time, current_booking_id } = req.body || {};
 
   if (!marriage_date) {
@@ -310,10 +194,12 @@ app.post('/api/bookings/check-availability', async (req: Request, res: Response)
     conflictingDates,
     conflictReason,
   });
-});
+};
+router.post('/bookings/check-availability', handleCheckAvailability);
+router.post('/check-availability', handleCheckAvailability);
 
 // POST create new booking
-app.post('/api/bookings', async (req: Request, res: Response) => {
+const handleCreateBooking = async (req: Request, res: Response) => {
   try {
     const body = req.body || {};
     const brideNameVal = String(body.bride_name || body.brideName || '').trim();
@@ -433,10 +319,11 @@ app.post('/api/bookings', async (req: Request, res: Response) => {
       message: err?.message || String(err),
     });
   }
-});
+};
+router.post('/bookings', handleCreateBooking);
 
 // PATCH update booking
-app.patch('/api/bookings/:id', async (req: Request, res: Response) => {
+const handleUpdateBooking = async (req: Request, res: Response) => {
   if (!verifyAdmin(req)) {
     return res.status(401).json({ error: 'Unauthorized: Admin authentication required.' });
   }
@@ -477,10 +364,11 @@ app.patch('/api/bookings/:id', async (req: Request, res: Response) => {
   saveBookingToSupabase(updatedBooking).catch((err) => console.warn('[Supabase Async Patch Warning]:', err));
 
   res.json({ success: true, booking: updatedBooking });
-});
+};
+router.patch('/bookings/:id', handleUpdateBooking);
 
 // DELETE booking
-app.delete('/api/bookings/:id', async (req: Request, res: Response) => {
+const handleDeleteBooking = async (req: Request, res: Response) => {
   if (!verifyAdmin(req)) {
     return res.status(401).json({ error: 'Unauthorized: Admin authentication required.' });
   }
@@ -499,10 +387,11 @@ app.delete('/api/bookings/:id', async (req: Request, res: Response) => {
   deleteBookingFromSupabase(targetBooking.id).catch((err) => console.warn('[Supabase Async Delete Warning]:', err));
 
   res.json({ success: true, message: 'Booking deleted successfully.' });
-});
+};
+router.delete('/bookings/:id', handleDeleteBooking);
 
 // POST forward email invoice
-app.post('/api/bookings/forward-email', async (req: Request, res: Response) => {
+const handleForwardEmail = async (req: Request, res: Response) => {
   const { booking_id, target_email } = req.body || {};
   const recipient = (target_email || 'Kannan.d26@gmail.com').trim();
 
@@ -534,10 +423,12 @@ app.post('/api/bookings/forward-email', async (req: Request, res: Response) => {
     console.error('Error forwarding invoice email:', err);
     res.status(500).json({ error: 'Failed to dispatch invoice email.', message: err?.message || String(err) });
   }
-});
+};
+router.post('/bookings/forward-email', handleForwardEmail);
+router.post('/forward-email', handleForwardEmail);
 
 // POST Admin Manual Date Block
-app.post('/api/admin/blocks', async (req: Request, res: Response) => {
+const handleCreateBlock = async (req: Request, res: Response) => {
   if (!verifyAdmin(req)) {
     return res.status(401).json({ error: 'Unauthorized: Admin authentication required.' });
   }
@@ -582,10 +473,12 @@ app.post('/api/admin/blocks', async (req: Request, res: Response) => {
 
   saveServerData(data);
   res.status(201).json({ success: true, blocks: createdBlocks, block: createdBlocks[0], count: createdBlocks.length });
-});
+};
+router.post('/admin/blocks', handleCreateBlock);
+router.post('/blocks', handleCreateBlock);
 
 // DELETE Admin Manual Date Block
-app.delete('/api/admin/blocks/:id', async (req: Request, res: Response) => {
+const handleDeleteBlock = async (req: Request, res: Response) => {
   if (!verifyAdmin(req)) {
     return res.status(401).json({ error: 'Unauthorized: Admin authentication required.' });
   }
@@ -597,10 +490,12 @@ app.delete('/api/admin/blocks/:id', async (req: Request, res: Response) => {
   deleteAdminBlockFromSupabase(id).catch((err) => console.warn('[Supabase Async Delete Block Warning]:', err));
 
   res.json({ success: true });
-});
+};
+router.delete('/admin/blocks/:id', handleDeleteBlock);
+router.delete('/blocks/:id', handleDeleteBlock);
 
 // POST Blog Lead Submission Endpoint
-app.post('/api/leads', async (req: Request, res: Response) => {
+const handleLeads = async (req: Request, res: Response) => {
   try {
     const {
       name,
@@ -741,6 +636,161 @@ app.post('/api/leads', async (req: Request, res: Response) => {
   } catch (err: any) {
     console.error('Error processing blog lead:', err);
     res.status(500).json({ error: 'Failed to process lead form. Please call us directly at +91 9159277277.' });
+  }
+};
+router.post('/leads', handleLeads);
+
+// Mount router on both /api prefix and root
+app.use('/api', router);
+app.use('/', router);
+
+// GET Dynamic Sitemap XML
+app.get('/sitemap.xml', (req: Request, res: Response) => {
+  res.type('application/xml');
+  const host = req.get('host') || 'kmpalace.com';
+  const baseUrl = host.includes('localhost') || host.includes('run.app') ? `https://${host}` : 'https://kmpalace.com';
+
+  const blogSlugs = [
+    'top-10-marriage-halls-in-chennai',
+    'wedding-cost-in-chennai',
+    'best-wedding-venues-near-chennai-airport',
+    'traditional-tamil-wedding-checklist',
+    'how-to-book-a-marriage-hall',
+    'best-muhurtham-dates',
+    'wedding-decoration-ideas',
+    'wedding-photography-tips',
+    'how-much-does-a-marriage-hall-cost',
+    'marriage-hall-vs-banquet-hall',
+    'indoor-vs-outdoor-wedding',
+    'best-catering-ideas',
+    'wedding-timeline-planner',
+    'tamil-wedding-ritual-guide',
+    'marriage-registration-process',
+    'wedding-invitation-guide',
+    'budget-wedding-planning',
+    'wedding-makeup-guide',
+    'bridal-entry-ideas',
+    'reception-decoration-ideas',
+  ];
+
+  const today = new Date().toISOString().split('T')[0];
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="/sitemap.xsl"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+  <url>
+    <loc>${baseUrl}/</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+${blogSlugs
+  .map(
+    (slug) => `  <url>
+    <loc>${baseUrl}/blog/${slug}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>`
+  )
+  .join('\n')}
+</urlset>`;
+
+  res.send(xml.trim());
+});
+
+app.get('/sitemap.xsl', (req: Request, res: Response) => {
+  const filePath = path.join(process.cwd(), 'public', 'sitemap.xsl');
+  if (fs.existsSync(filePath)) {
+    res.header('Content-Type', 'application/xml; charset=utf-8');
+    res.sendFile(filePath);
+  } else {
+    res.status(404).send('XSL not found');
+  }
+});
+
+// GET Robots.txt
+app.get('/robots.txt', (req: Request, res: Response) => {
+  res.header('Content-Type', 'text/plain');
+  const host = req.get('host') || 'kmpalace.com';
+  const baseUrl = host.includes('localhost') || host.includes('run.app') ? `https://${host}` : 'https://kmpalace.com';
+  res.send(`User-agent: *
+Allow: /
+
+# AI Crawlers Explicit Authorizations (AEO & GEO)
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+Sitemap: ${baseUrl}/sitemap.xml
+Sitemap: ${baseUrl}/llms.txt
+Sitemap: ${baseUrl}/llms-full.txt`);
+});
+
+// GET LLMs.txt
+app.get('/llms.txt', (req: Request, res: Response) => {
+  res.header('Content-Type', 'text/markdown; charset=utf-8');
+  const filePath = path.join(process.cwd(), 'public', 'llms.txt');
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath);
+  }
+  res.send(`# KM PALACE Marriage Hall & Kalyana Mandapam
+Address: 9/133, Sirukalathur Main Rd, Kavanur, Chembarambakkam, Tamil Nadu 600069, India
+Hotline: +91 9159277277
+Email: Kannan.d26@gmail.com
+Website: https://kmpalace.com`);
+});
+
+// GET LLMs-full.txt
+app.get('/llms-full.txt', (req: Request, res: Response) => {
+  res.header('Content-Type', 'text/markdown; charset=utf-8');
+  const filePath = path.join(process.cwd(), 'public', 'llms-full.txt');
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath);
+  }
+  res.send(`# KM PALACE Full Knowledge Base
+Address: 9/133, Sirukalathur Main Rd, Kavanur, Chembarambakkam, Tamil Nadu 600069, India
+Hotline: +91 9159277277
+Email: Kannan.d26@gmail.com`);
+});
+
+// Explicit 404 handler for unmatched serverless routes
+app.use((req: Request, res: Response) => {
+  if (!res.headersSent) {
+    res.status(404).json({ error: 'Route not found', url: req.url, method: req.method });
+  }
+});
+
+// Global Error Handler for Serverless Functions
+app.use((err: any, req: Request, res: Response, next: any) => {
+  console.error('[UNHANDLED EXPRESS SERVERLESS ERROR]', err);
+  if (!res.headersSent) {
+    res.status(500).json({ error: 'Serverless Function Execution Error', message: err?.message || String(err) });
   }
 });
 

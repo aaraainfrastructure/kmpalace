@@ -1,6 +1,39 @@
 {
   "bookings": [
     {
+      "id": "bk_1785594985331_h3s0d",
+      "booking_id": "KM-20260801-033",
+      "customer_name": "Vercel Test User",
+      "phone": "9876543210",
+      "email": "test@example.com",
+      "customer_address": "",
+      "bride_name": "Bride",
+      "groom_name": "Groom",
+      "marriage_date": "2028-01-15",
+      "slot_type": "24hr",
+      "muhurtham_time": "06:00 AM",
+      "from_time": "12:00",
+      "end_time": "12:00",
+      "function_type": "Wedding",
+      "guest_count": 200,
+      "requirements": [],
+      "blocked_previous_day": false,
+      "blocked_dates": [
+        "2028-01-15",
+        "2028-01-16"
+      ],
+      "booking_status": "Confirmed",
+      "created_at": "2026-08-01T14:36:25.331Z",
+      "notes": "",
+      "estimated_amount": 0,
+      "payment_method": "Direct Venue",
+      "payment_gateway": "Manual",
+      "currency": "INR",
+      "customer_region": "India",
+      "payment_status": "Pending",
+      "advance_paid_amount": 0
+    },
+    {
       "id": "bk_1785584680631_25k0b",
       "booking_id": "KM-20260801-032",
       "customer_name": "Test Post Script",
@@ -932,5 +965,5 @@
     }
   ],
   "adminBlocks": [],
-  "nextSequence": 31
+  "nextSequence": 34
 }
